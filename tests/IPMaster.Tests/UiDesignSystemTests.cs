@@ -514,3 +514,52 @@ public class TableReadabilityTests
         }
     });
 }
+
+/// <summary>Layout survey (also a regression check): at the default and the minimum size, no control or text of any window lies outside it.</summary>
+[Collection("Headless UI")]
+public class WindowFitTests
+{
+    internal static List<string> Problems(Window window, string name)
+    {
+        var client = new Rect(window.ClientSize).Inflate(0.5);
+        var list = new List<string>();
+        foreach (var c in window.GetVisualDescendants().OfType<Control>().Where(c => c.IsEffectivelyVisible && c.Bounds.Width > 0 && c is Button or TextBox or ComboBox or CheckBox or RadioButton or TextBlock))
+        {
+            if (c.GetVisualAncestors().Any(a => a is ScrollViewer or DataGrid or Avalonia.Controls.Primitives.Popup) || c.TemplatedParent is not null) continue;
+            if (c is TextBlock t && (t.TextTrimming != Avalonia.Media.TextTrimming.None || string.IsNullOrEmpty(t.Text))) continue;
+            if (c.TranslatePoint(new Point(0, 0), window) is not { } p) continue;
+            var r = new Rect(p, c.Bounds.Size);
+            if (!client.Contains(r.TopLeft) || !client.Contains(r.BottomRight))
+                list.Add($"{name}: {c.GetType().Name} '{(c as TextBlock)?.Text ?? (c as ContentControl)?.Content?.ToString() ?? Avalonia.Automation.AutomationProperties.GetName(c)}' {r.Right - client.Right:+0;-0} px wide, {r.Bottom - client.Bottom:+0;-0} px tall over {client.Size}");
+        }
+
+        return list;
+    }
+
+    public static TheoryData<string> AllWindows() => [.. MainWindow.ToolEntries.Select(t => "tool:" + t.Header), .. UiDesignSystemTests.OtherWindows.Keys];
+
+    [Theory]
+    [MemberData(nameof(AllWindows))]
+    public Task Nothing_lies_outside_the_window_at_default_and_minimum_size(string id) => HeadlessUi.Run(() =>
+    {
+        var window = id.StartsWith("tool:", StringComparison.Ordinal)
+            ? MainWindow.ToolEntries.Single(t => "tool:" + t.Header == id).Open(null!, HeadlessUi.Vm)
+            : UiDesignSystemTests.OtherWindows[id]();
+        var name = id.Replace("tool:", "", StringComparison.Ordinal).Replace("_", "", StringComparison.Ordinal);
+        try
+        {
+            window.Show();
+            UiDesignSystemTests.Dispatch();
+            var problems = Problems(window, name + " (default)");
+            window.Width = window.MinWidth > 0 ? window.MinWidth : 400;
+            window.Height = window.MinHeight > 0 ? window.MinHeight : 300;
+            UiDesignSystemTests.Dispatch();
+            problems.AddRange(Problems(window, name + " (minimum)"));
+            Assert.True(problems.Count == 0, string.Join('\n', problems));
+        }
+        finally
+        {
+            window.Close();
+        }
+    });
+}

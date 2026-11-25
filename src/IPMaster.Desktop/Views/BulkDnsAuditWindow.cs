@@ -71,7 +71,7 @@ internal sealed class BulkDnsAuditWindow : Window
 
         problemsOnly.IsCheckedChanged += (_, _) => Show();
 
-        var run = Ui.Button("Run Audit", async () =>
+        var run = Ui.Button("Start Audit", async () =>
         {
             var inputs = DnsAudit.ParseInput(entries.Text ?? "");
             var serverList = new List<IPEndPoint>();

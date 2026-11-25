@@ -123,7 +123,7 @@ internal sealed class SnmpTargetForm
                 }
                 catch (Exception ex) when (ex is System.Net.Sockets.SocketException or InvalidOperationException)
                 {
-                    return (null, "The agent name could not be resolved.");
+                    return (null, "Agent not found. Check the name.");
                 }
             }
 

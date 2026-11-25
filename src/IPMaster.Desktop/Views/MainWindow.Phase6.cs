@@ -359,7 +359,7 @@ public partial class MainWindow
         }
         catch (System.ComponentModel.Win32Exception ex)
         {
-            await ShowMessageAsync("New Window", "A new window could not be started: " + ex.Message);
+            await ShowMessageAsync("New Window", "New window not started: " + ex.Message);
         }
     }
 }

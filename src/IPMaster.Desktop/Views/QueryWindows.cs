@@ -367,7 +367,7 @@ internal static class QueryEditor
             }
         }
 
-        if (ip is null) return "Host name could not be resolved.";
+        if (ip is null) return "Host not found. Check the name.";
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(Math.Clamp(q.TimeoutSeconds, 1, 600) + 5));
         var device = vm.Results.Rows.Select(r => r.Result).FirstOrDefault(d => d.Address.Equals(ip));
         var o = await vm.Queries.TestAsync(vm.Settings, q, ip, cts.Token, device);

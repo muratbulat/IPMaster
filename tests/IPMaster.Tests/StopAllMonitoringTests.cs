@@ -136,3 +136,24 @@ public class SettingsFolderTests
         }
     }
 }
+
+/// <summary>Same first-run case for device history: Device Inventory opened the database before the folder existed.</summary>
+public class HistoryFolderTests
+{
+    [Fact]
+    public void History_store_creates_a_missing_folder()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "ipmaster-newhistory-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var store = new IPMaster.Infrastructure.Monitoring.HistoryStore(Path.Combine(root, "IPMaster"));
+            Assert.Empty(store.Networks());
+            Assert.True(File.Exists(store.Path));
+        }
+        finally
+        {
+            Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+            if (Directory.Exists(root)) Directory.Delete(root, recursive: true);
+        }
+    }
+}

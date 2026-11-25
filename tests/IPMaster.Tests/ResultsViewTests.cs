@@ -41,6 +41,25 @@ public class ResultsViewTests
     }
 
     [Fact]
+    public void Host_names_sort_naturally_empty_last_and_the_sort_survives_live_updates()
+    {
+        var v = View();
+        v.Upsert(D("10.0.0.1", "nas10"), false);
+        v.Upsert(D("10.0.0.2", "nas2"), false);
+        v.Upsert(D("10.0.0.3"), false); // no name
+        v.SetSort("hostName", descending: false);
+        v.Rebuild();
+        Assert.Equal(["10.0.0.2", "10.0.0.1", "10.0.0.3"], Ips(v)); // nas2 before nas10; no name last
+        v.SetSort("hostName", descending: true);
+        v.Rebuild();
+        Assert.Equal(["10.0.0.1", "10.0.0.2", "10.0.0.3"], Ips(v)); // still last when descending
+        v.Upsert(D("10.0.0.4", "nas11"), false); // a live scan update with an active sort
+        Assert.True(v.IsDirty);
+        v.Rebuild();
+        Assert.Equal(["10.0.0.4", "10.0.0.1", "10.0.0.2", "10.0.0.3"], Ips(v));
+    }
+
+    [Fact]
     public void Highlight_filter_keeps_rows_and_hide_filter_removes_them()
     {
         var v = View();

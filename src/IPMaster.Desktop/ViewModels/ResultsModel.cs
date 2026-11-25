@@ -357,14 +357,17 @@ public sealed class ResultsView
         {
             var va = col.SortValue(a.Result, Format);
             var vb = col.SortValue(b.Result, Format);
+            if (va is string ea && ValueOrder.IsEmpty(ea)) va = null; // a rendered "no value" stays last in both directions
+            if (vb is string eb && ValueOrder.IsEmpty(eb)) vb = null;
             int c;
             if (va is null && vb is null) c = 0;
             else if (va is null) c = 1; // empty values last in either direction
             else if (vb is null) c = -1;
             else
             {
+                // text columns: natural, address-aware order (host2 before host10, IPv6 lists by address)
                 c = va is string sa && vb is string sb
-                    ? (CaseInsensitiveSort ? string.Compare(sa, sb, StringComparison.CurrentCultureIgnoreCase) : string.Compare(sa, sb, StringComparison.CurrentCulture))
+                    ? ValueOrder.Compare(sa, sb, CaseInsensitiveSort)
                     : va.GetType() == vb.GetType() ? va.CompareTo(vb) : string.CompareOrdinal(va.ToString(), vb.ToString());
                 if (SortDescending) c = -c;
             }

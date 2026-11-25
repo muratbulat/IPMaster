@@ -146,7 +146,7 @@ internal sealed class WifiAnalyzerWindow : Window
             }
             catch (System.ComponentModel.Win32Exception ex)
             {
-                _status.Text = "Could not open the settings: " + ex.Message;
+                _status.Text = "Location settings not opened: " + ex.Message;
             }
 
             return Task.CompletedTask;
@@ -529,7 +529,7 @@ internal sealed class WifiAnalyzerWindow : Window
     {
         _heatTarget = ToolKit.Combo("Heatmap network", ["(no heatmap)"], 0, 320);
         _heatTarget.SelectionChanged += (_, _) => RefreshSurvey();
-        var load = Ui.Button("Load Floor Plan…", async () =>
+        var load = Ui.Button("Import Floor Plan…", async () =>
         {
             var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
             {
@@ -537,7 +537,7 @@ internal sealed class WifiAnalyzerWindow : Window
             });
             if (files.Count > 0 && files[0].TryGetLocalPath() is { } path) SetFloorPlan(path);
         });
-        var open = Ui.Button("Open Survey…", async () =>
+        var open = Ui.Button("Load Survey…", async () =>
         {
             var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions { Title = "Open survey", FileTypeFilter = [new FilePickerFileType("Survey (JSON)") { Patterns = ["*.json"] }] });
             if (files.Count == 0 || files[0].TryGetLocalPath() is not { } path) return;
@@ -550,7 +550,7 @@ internal sealed class WifiAnalyzerWindow : Window
             }
             catch (Exception ex) when (ex is JsonException or IOException or UnauthorizedAccessException)
             {
-                _status.Text = "Cannot open the survey: " + ex.Message;
+                _status.Text = "Survey not loaded: " + ex.Message;
             }
         });
         var save = ToolKit.ExportButton(this, () => JsonSerializer.Serialize(_survey, Indented), "wifi-survey.json", "Save Survey…");
@@ -565,7 +565,7 @@ internal sealed class WifiAnalyzerWindow : Window
             bitmap.Save(path, PngBitmapEncoderOptions.Default);
             _status.Text = "Heatmap exported (an interpolated estimate between the measured points).";
         });
-        var undo = Ui.Button("Remove Last Point", () =>
+        var undo = Ui.Button("Delete Last Point", () =>
         {
             if (_survey.Points.Count > 0) _survey.Points.RemoveAt(_survey.Points.Count - 1);
             RefreshSurvey();
@@ -606,7 +606,7 @@ internal sealed class WifiAnalyzerWindow : Window
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
         {
-            _status.Text = "Cannot load the image: " + ex.Message;
+            _status.Text = "Image not imported: " + ex.Message;
         }
     }
 

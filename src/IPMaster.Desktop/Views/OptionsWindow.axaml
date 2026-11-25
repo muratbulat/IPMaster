@@ -88,9 +88,9 @@
               <CheckBox Content="Show successful ping method" IsChecked="{Binding ShowPingMethod}" />
               <CheckBox Content="Ping network and broadcast addresses" IsChecked="{Binding PingNetworkAndBroadcast}" />
               <CheckBox Content="Allow ARP outside current subnet" IsChecked="{Binding AllowArpOutsideSubnet}" IsEnabled="{Binding ArpAvailable}" />
-              <CheckBox Content="Display Time To Live (TTL)" IsChecked="{Binding ShowTtl}" />
+              <CheckBox Content="Show Time To Live (TTL)" IsChecked="{Binding ShowTtl}" />
               <CheckBox Content="Detect duplicate MAC addresses" IsChecked="{Binding DetectDuplicateMacs}" />
-              <CheckBox Content="Display inactive devices" IsChecked="{Binding DisplayInactiveDevices}" />
+              <CheckBox Content="Show inactive devices" IsChecked="{Binding DisplayInactiveDevices}" />
               <CheckBox Content="Scan in random order" IsChecked="{Binding RandomOrder}" />
               <CheckBox Content="Show last-scan and last-seen times" IsChecked="{Binding ShowTimestamps}" />
               <CheckBox Content="Minimise to the notification area" IsChecked="{Binding MinimizeToTray}" ToolTip.Tip="When minimised, IPMaster hides its window and stays in the notification area (system tray)." />
@@ -234,7 +234,7 @@
               </StackPanel>
               <TextBlock Text="{Binding TcpPortsError}" Classes="error" />
             </StackPanel>
-            <CheckBox Content="Display service names rather than port numbers" IsChecked="{Binding ShowServiceNames}" />
+            <CheckBox Content="Show service names instead of port numbers" IsChecked="{Binding ShowServiceNames}" />
             <CheckBox Content="Check for open UDP ports (protocol-specific probes; silence is reported as open|filtered)" IsChecked="{Binding ScanUdpPorts}" />
             <ItemsControl ItemsSource="{Binding UdpItems}" Margin="24,0,0,0" IsEnabled="{Binding ScanUdpPorts}">
               <ItemsControl.ItemsPanel>
@@ -392,8 +392,8 @@
                 <ComboBoxItem Content="UTF-16 LE" />
               </ComboBox>
             </Grid>
-            <CheckBox Content="Display grid lines" IsChecked="{Binding GridLines}" />
-            <CheckBox Content="Display long values on multiple lines" IsChecked="{Binding MultiLineCells}" />
+            <CheckBox Content="Show grid lines" IsChecked="{Binding GridLines}" />
+            <CheckBox Content="Show long values on multiple lines" IsChecked="{Binding MultiLineCells}" />
             <CheckBox Content="Case-insensitive sorting" IsChecked="{Binding CaseInsensitiveSort}" />
             <CheckBox Content="Automatically expand devices with shares" IsChecked="{Binding AutoExpand}" />
             <CheckBox Content="Protect CSV against spreadsheet formula injection (prefix =, +, -, @ with ')" IsChecked="{Binding CsvProtectFormulas}" />

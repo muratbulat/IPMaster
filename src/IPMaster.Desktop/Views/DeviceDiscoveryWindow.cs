@@ -362,7 +362,8 @@ internal sealed class DeviceDiscoveryWindow : Window
         // ---------------- events ----------------
         var eventFilter = ToolKit.Text("Event filter", "filter events", 220);
         var eventsBox = ToolKit.ReportBox("Events");
-        eventsBox.Height = 150;
+        eventsBox.MinHeight = 60; // up to 150 px; gives way at small window sizes (it scrolls inside)
+        eventsBox.MaxHeight = 150;
         void ShowEvents()
         {
             var f = eventFilter.Text?.Trim() ?? "";

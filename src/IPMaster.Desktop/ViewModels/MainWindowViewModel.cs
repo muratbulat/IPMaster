@@ -522,14 +522,14 @@ public sealed partial class MainWindowViewModel : ObservableObject, IScanResultS
         catch (Exception ex)
         {
             ResetStatus("Ready");
-            await ShowAsync("Cannot start scan", ex.Message);
+            await ShowAsync("Scan not started", ex.Message);
             return;
         }
 
         if (!built.CanStart)
         {
             ResetStatus("Ready");
-            await ShowAsync("Cannot start scan", string.Join(Environment.NewLine, built.Errors));
+            await ShowAsync("Scan not started", string.Join(Environment.NewLine, built.Errors));
             return;
         }
 
@@ -1010,7 +1010,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IScanResultS
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
         {
-            StatusText = "Settings could not be saved: " + ex.Message;
+            StatusText = "Settings not saved. Check the settings folder: " + ex.Message;
         }
     }
 
@@ -1061,7 +1061,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IScanResultS
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
-            return (hookText is null ? "" : hookText + '\n') + (autoSave is null ? "The settings could not be saved: " : "The settings or the auto-save results file could not be saved: ") + ex.Message;
+            return (hookText is null ? "" : hookText + '\n') + (autoSave is null ? "Settings not saved. Check the settings folder: " : "Settings or auto-save results not saved. Check the folder: ") + ex.Message;
         }
     }
 

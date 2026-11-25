@@ -45,7 +45,7 @@ internal static class Ui
         foreach (var (h, p, w) in columns)
         {
             // never narrower than the header (title plus sort glyph); fill columns keep a usable minimum
-            var headerWidth = Math.Ceiling((h.Length * 7.5) + 34);
+            var headerWidth = (h.Length * 8.0) + 44;
             g.Columns.Add(new DataGridTextColumn
             {
                 Header = h, Binding = new ReflectionBinding(p), MinWidth = w <= 0 ? Math.Max(headerWidth, 120) : headerWidth,
@@ -193,6 +193,8 @@ internal sealed class DhcpWindow : Window
         Title = "DHCP Server Discovery & Diagnostics";
         Width = 1000;
         Height = 640;
+        MinWidth = Styling.Theme.ToolMinWidth;
+        MinHeight = Styling.Theme.ToolMinHeight;
         var grid = Ui.Grid(("Type", "Type", 70), ("DHCP Server", "Server", 140), ("Offered Address", "Offered", 130), ("Gateway", "Gateway", 130), ("DNS", "Dns", 160),
             ("Client", "Client", 140), ("Response", "Response", 0));
         var status = new TextBlock { VerticalAlignment = VerticalAlignment.Center, Classes = { "status" }, TextWrapping = TextWrapping.Wrap };
@@ -204,7 +206,8 @@ internal sealed class DhcpWindow : Window
         var expected = new TextBox { PlaceholderText = "expected server(s), e.g. 192.0.2.1", Width = 220 };
         var listenSeconds = new NumericUpDown { Value = 30, Minimum = 5, Maximum = 600, Increment = 5, FormatString = "0", Width = 110 };
         var findings = new SelectableTextBlock { TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 6, 0, 0) };
-        var comparison = new TextBox { IsReadOnly = true, AcceptsReturn = true, FontFamily = ToolKit.Mono, Height = 140, TextWrapping = TextWrapping.NoWrap };
+        // grows with its content up to 140 px and gives way at small window sizes (it scrolls inside)
+        var comparison = new TextBox { IsReadOnly = true, AcceptsReturn = true, FontFamily = ToolKit.Mono, MinHeight = 48, MaxHeight = 140, TextWrapping = TextWrapping.NoWrap };
         Avalonia.Automation.AutomationProperties.SetName(comparison, "Option comparison");
         Avalonia.Automation.AutomationProperties.SetName(expected, "Expected DHCP servers");
         Avalonia.Automation.AutomationProperties.SetName(adapter, "Adapter");
@@ -329,7 +332,7 @@ internal sealed class DuplicateIpWindow : Window
         status.Text = cap.Available
             ? interfaces.Count == 0 ? "No IPv4 interface with a /16–/30 subnet can be opened for capture." : "ARP requests are broadcast to every address of the subnet; replies are collected for 3 seconds. Behind proxy-ARP gateways results are unreliable."
             : cap.Description;
-        var go = Ui.Button("Go", async () =>
+        var go = Ui.Button("Start", async () =>
         {
             if (combo.SelectedIndex < 0) return;
             status.Text = "Scanning…";
@@ -686,7 +689,7 @@ internal static class ManagementDialogs
         }
 
         Dictionary<string, string>? result = null;
-        panel.Children.Add(Ui.Row(Ui.Button("Run", () =>
+        panel.Children.Add(Ui.Row(Ui.Button("Start", () =>
         {
             result = boxes.ToDictionary(b => b.P.Name, b => b.Box.Text ?? "");
             w.Close();

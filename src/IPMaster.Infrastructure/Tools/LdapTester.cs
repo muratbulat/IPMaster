@@ -182,8 +182,16 @@ public static class LdapTester
         }, CancellationToken.None);
         try
         {
-            var (outcome, detail, entries, pages, truncated) = await work.WaitAsync(ct).ConfigureAwait(false);
+            // Wall-clock bound: on Linux, libldap does not apply the request timeout to a server that accepts the
+            // connection and then stays silent, so the call could block for ever. A paged search sends several requests.
+            var limit = p.Timeout * 4 + TimeSpan.FromSeconds(2);
+            var (outcome, detail, entries, pages, truncated) = await work.WaitAsync(limit, ct).ConfigureAwait(false);
             return new LdapResult(outcome, detail, entries, pages, truncated, Describe(p), sw.Elapsed);
+        }
+        catch (TimeoutException) when (!work.IsCompleted)
+        {
+            _ = work.ContinueWith(t => t.Exception, TaskScheduler.Default); // observed; it ends when the connection closes
+            return Fail(LdapOutcome.Timeout, $"No answer within {p.Timeout.TotalSeconds:0} s. Check the server and port.", p, sw.Elapsed);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {

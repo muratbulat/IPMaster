@@ -310,7 +310,7 @@ public sealed class CompareWindow : Window
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or FormatException or System.Xml.XmlException or ArgumentException)
             {
-                summary.Text = "Cannot compare: " + ex.Message;
+                summary.Text = "Comparison failed: " + ex.Message;
             }
         };
 

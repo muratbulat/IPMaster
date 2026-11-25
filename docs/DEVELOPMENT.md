@@ -73,3 +73,26 @@ or history unless `-DiscardUserData` is given.
 - A new tool is one entry in `ToolEntries` (`Views/MainWindow.Tools.cs`); the menu, shortcuts, navigator and UI tests
   pick it up from there.
 - Never point tools at real infrastructure in tests; use the loopback fixtures.
+- Tables: every bound column sorts by value when its header is clicked (IP addresses by address, numbers with units by
+  value, dates by time, text in natural order, empty values last); long values end in an ellipsis and show in full as a
+  tooltip. Bind columns to the displayed text; do not add a custom comparer unless the value needs one.
+
+## UI text
+
+Short, direct English in the spirit of ASD-STE100 Simplified Technical English (an adaptation, not a compliance claim):
+one term for one concept, active voice, labels without filler, errors as "Problem. Action." ("Host not found. Check the
+name."), and the technical detail after a colon or in a tooltip. Keep standard network terms (DNS, DHCP, SNMP, IPv6,
+MAC address, latency, packet loss).
+
+| Action | Term | Not |
+|---|---|---|
+| begin / end an operation | Start / Stop | Begin, Run, Halt (Go only to navigate to a typed path) |
+| suspend / continue | Pause / Resume | |
+| read / write a saved configuration or file of IPMaster's own | Load / Save | Open |
+| read / write an external file | Import / Export | |
+| remove an item for good | Delete | Remove (except taking an item off a list, e.g. an attachment) |
+| empty a field, list or selection | Clear | |
+| update what is shown | Refresh | Reload |
+| show an option or column | Show … | Display … |
+| send a single request (HTTP, SNMP, DHCP) | Send | Run |
+| detailed information | Properties / Details | |

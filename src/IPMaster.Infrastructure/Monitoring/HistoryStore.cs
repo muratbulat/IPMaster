@@ -33,6 +33,8 @@ public sealed class HistoryStore : IHistoryStore
 
     private SqliteConnection Open()
     {
+        // a first run has no settings folder yet; SQLite cannot create the folder (Device Inventory failed to open)
+        Directory.CreateDirectory(System.IO.Path.GetDirectoryName(Path)!);
         var c = new SqliteConnection(_connectionString);
         c.Open();
         if (!_initialised)

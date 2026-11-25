@@ -70,7 +70,7 @@ public sealed partial class MainWindowViewModel
                 }
                 catch (Exception ex) when (ex is not OutOfMemoryException) // was unobserved (D-087)
                 {
-                    Dispatcher.UIThread.Post(() => StatusText = "Device history could not be loaded: " + ex.Message);
+                    Dispatcher.UIThread.Post(() => StatusText = "Device history not loaded: " + ex.Message);
                 }
             });
         }

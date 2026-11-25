@@ -122,7 +122,7 @@ internal sealed class PathAnalyzerWindow : Window
             var destination = await Resolve(name, ct);
             if (destination is null)
             {
-                status.Text = $"'{name}' could not be resolved.";
+                status.Text = $"Host not found: '{name}'. Check the name.";
                 _stop = null;
                 cts.Dispose();
                 start.IsEnabled = true;
@@ -168,7 +168,7 @@ internal sealed class PathAnalyzerWindow : Window
             await mtuRunner.RunAsync("Discovering the path MTU", async ct =>
             {
                 var destination = await Resolve(name, ct);
-                if (destination is null) return $"'{name}' could not be resolved.";
+                if (destination is null) return $"Host not found: '{name}'. Check the name.";
                 if (destination.AddressFamily != System.Net.Sockets.AddressFamily.InterNetwork) return "Path MTU discovery uses IPv4 don't-fragment pings: enter an IPv4 destination.";
                 var r = await PathMtu.DiscoverAsync((size, token) => PathProbes.MtuProbeAsync(destination, size, wait, token), 1500, ct);
                 await Dispatcher.UIThread.InvokeAsync(() =>

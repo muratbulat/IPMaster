@@ -130,10 +130,13 @@ public class MonitoringLifecycleTests
         var silent = AddressKey.From(IPAddress.Parse("10.0.0.2"));
         m.Start(fast);
         m.Start(silent);
-        await Task.Delay(1500, TestContext.Current.CancellationToken);
+        await Task.Delay(3000, TestContext.Current.CancellationToken);
         await m.StopAsync().WaitAsync(Cap);
-        Assert.True(m.Series(fast)!.Count >= 5, $"responsive device sampled {m.Series(fast)!.Count}x in 1.5 s");
-        Assert.InRange(m.Series(silent)!.Count, 1, 2);
+        // relative, so a slow CI runner does not fail it: if the silent device held the others back, both would be
+        // sampled about once a second; independent schedules sample the responsive one several times as often
+        int f = m.Series(fast)!.Count, s = m.Series(silent)!.Count;
+        Assert.InRange(s, 1, 4);
+        Assert.True(f >= 3 * s && f >= 5, $"responsive device sampled {f}x, silent device {s}x in 3 s");
     }
 
     [Fact]

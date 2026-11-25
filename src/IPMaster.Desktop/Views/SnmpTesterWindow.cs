@@ -88,7 +88,7 @@ internal sealed class SnmpTesterWindow : Window
         grid.Columns.Add(new DataGridTextColumn { Header = "Value", Binding = new Binding(nameof(SnmpTestRow.Value)), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
         Avalonia.Automation.AutomationProperties.SetName(grid, "Values");
 
-        var run = Ui.Button("Run", async () =>
+        var run = Ui.Button("Send", async () =>
         {
             Styling.Theme.SetState(status, null);
             if (agent.Validate() is { } missing)
