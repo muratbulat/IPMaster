@@ -22,7 +22,11 @@ public partial class App : Application
 
     public static bool IsDark => Current?.ActualThemeVariant == ThemeVariant.Dark;
 
-    public override void Initialize() => AvaloniaXamlLoader.Load(this);
+    public override void Initialize()
+    {
+        AvaloniaXamlLoader.Load(this);
+        Styling.TrimmedTextTips.Register(); // full values for shortened table cells
+    }
 
     public override void OnFrameworkInitializationCompleted()
     {

@@ -41,12 +41,15 @@ internal static class Ui
 
     public static DataGrid Grid(params (string Header, string Path, double Width)[] columns)
     {
-        var g = new DataGrid { IsReadOnly = true, HeadersVisibility = DataGridHeadersVisibility.Column, SelectionMode = DataGridSelectionMode.Extended, CanUserSortColumns = true };
+        var g = new DataGrid { IsReadOnly = true, HeadersVisibility = DataGridHeadersVisibility.Column, SelectionMode = DataGridSelectionMode.Extended, CanUserSortColumns = true, CanUserResizeColumns = true };
         foreach (var (h, p, w) in columns)
         {
+            // never narrower than the header (title plus sort glyph); fill columns keep a usable minimum
+            var headerWidth = Math.Ceiling((h.Length * 7.5) + 34);
             g.Columns.Add(new DataGridTextColumn
             {
-                Header = h, Binding = new ReflectionBinding(p), Width = w <= 0 ? new DataGridLength(1, DataGridLengthUnitType.Star) : new DataGridLength(w),
+                Header = h, Binding = new ReflectionBinding(p), MinWidth = w <= 0 ? Math.Max(headerWidth, 120) : headerWidth,
+                Width = w <= 0 ? new DataGridLength(1, DataGridLengthUnitType.Star) : new DataGridLength(Math.Max(w, headerWidth)),
             });
         }
 
@@ -82,6 +85,18 @@ internal static class Ui
     {
         Classes = { Styling.Theme.Classes.Banner, state }, IsVisible = visible, Child = new TextBlock { Text = text, TextWrapping = TextWrapping.Wrap },
     };
+
+    /// <summary>
+    /// A short visible line with its full explanation as a tooltip and as accessible help text: utility windows stay
+    /// compact without hiding the detail. Safety, privacy and error texts are shown in full instead.
+    /// </summary>
+    public static TextBlock Explained(string text, string details)
+    {
+        var t = new TextBlock { Text = text + " ⓘ", Classes = { "hint" } };
+        ToolTip.SetTip(t, details);
+        Avalonia.Automation.AutomationProperties.SetHelpText(t, details);
+        return t;
+    }
 
     public static Window Window(string title, double w, double h) =>
         new() { Title = title, Width = w, Height = h, MinWidth = Styling.Theme.DialogMinWidth, MinHeight = Styling.Theme.DialogMinHeight, WindowStartupLocation = WindowStartupLocation.CenterOwner };

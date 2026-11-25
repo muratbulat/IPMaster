@@ -250,12 +250,9 @@ internal sealed class SnmpInterfaceMonitorWindow : Window
 
         var options = new WrapPanel { Children = { SnmpTargetForm.Pair("Interval (s)", interval), SnmpTargetForm.Pair("Timeout (s)", timeout) } };
         var actions = Ui.Row(discover, start, stop, exportCsv);
-        var hint = new TextBlock
-        {
-            Text = "Read-only (GET and walks; never SET). Rates use the agent's sysUpTime between readings, so a slow poll does not distort them; a counter reset, "
-                   + "an implausible 32-bit wrap or an agent restart leaves a gap and a note instead of a spike. 64-bit counters are used where the agent has them.",
-            Classes = { "description" },
-        };
+        var hint = Ui.Explained("Read-only: GET and walks, never SET.",
+            "Read-only (GET and walks; never SET). Rates use the agent's sysUpTime between readings, so a slow poll does not distort them; a counter reset, "
+                   + "an implausible 32-bit wrap or an agent restart leaves a gap and a note instead of a spike. 64-bit counters are used where the agent has them.");
         var split = new Grid { RowDefinitions = new RowDefinitions("*,6,*,Auto") };
         split.Children.Add(ifGrid);
         var splitter = new GridSplitter { ResizeDirection = GridResizeDirection.Rows };

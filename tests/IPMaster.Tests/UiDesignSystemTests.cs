@@ -468,3 +468,49 @@ public class WifiWindowTests
         HeadlessUi.SetTheme(ThemeVariant.Default);
     });
 }
+
+/// <summary>Long table values stay readable: trimmed cells show the full value as a tooltip; short ones get none.</summary>
+[Collection("Headless UI")]
+public class TableReadabilityTests
+{
+    public sealed record Row(string Host, string Address, string Error);
+
+    [Fact]
+    public Task Shortened_cells_show_the_full_value_and_columns_fit_their_headers() => HeadlessUi.Run(() =>
+    {
+        const string host = "very-long-host-name-for-a-storage-array-in-building-7.branch-office.example.internal";
+        const string v6 = "2001:db8:85a3:1234:5678:8a2e:370:7334";
+        const string error = "The remote host closed the connection while the TLS handshake was in progress (timeout after 15 s)";
+        var grid = IPMaster.Desktop.Views.Ui.Grid(("Host Name", nameof(Row.Host), 160), ("IPv6 Address", nameof(Row.Address), 40), ("Error", nameof(Row.Error), 0));
+        grid.ItemsSource = new[] { new Row(host, v6, error), new Row("nas", "::1", "") };
+        var window = new Window { Content = grid, Width = 700, Height = 300 };
+        window.Show();
+        try
+        {
+            UiDesignSystemTests.Dispatch();
+            Assert.All(grid.Columns, c => Assert.True(c.ActualWidth >= ((string)c.Header!).Length * 7.5, $"{c.Header} narrower than its header"));
+            Assert.True(grid.CanUserResizeColumns);
+            var cells = window.GetVisualDescendants().OfType<TextBlock>().Where(t => t.FindAncestorOfType<DataGridCell>() is not null).ToList();
+            TextBlock Cell(string text) => cells.Single(t => t.Text == text);
+            void Hover(TextBlock t)
+            {
+                var p = t.TranslatePoint(new Point(2, t.Bounds.Height / 2), window)!.Value;
+                window.MouseMove(p);
+                UiDesignSystemTests.Dispatch();
+            }
+
+            Hover(Cell(host));
+            Assert.Equal(host, ToolTip.GetTip(Cell(host)));
+            Assert.True(IPMaster.Desktop.Styling.TrimmedTextTips.IsTrimmed(Cell(host)));
+            Hover(Cell(error));
+            Assert.Equal(error, ToolTip.GetTip(Cell(error)));
+            Hover(Cell("nas"));
+            Assert.Null(ToolTip.GetTip(Cell("nas"))); // not shortened: no tooltip
+            HeadlessUi.Snapshot(window, "Table with long values");
+        }
+        finally
+        {
+            window.Close();
+        }
+    });
+}

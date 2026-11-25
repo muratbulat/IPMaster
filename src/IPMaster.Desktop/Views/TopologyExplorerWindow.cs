@@ -181,12 +181,9 @@ internal sealed class TopologyExplorerWindow : Window
         var exportJson = ToolKit.ExportButton(this, () => JsonSerializer.Serialize(graph, TopologyJson.Options), "topology.json", "Export JSON…");
 
         var options = new WrapPanel { Children = { SnmpTargetForm.Pair("Max devices", maxDevices), SnmpTargetForm.Pair("Timeout (s)", timeout), follow } };
-        var hint = new TextBlock
-        {
-            Text = "Read-only SNMP (LLDP-MIB, CISCO-CDP-MIB). A link is shown only where a device reports it; 'seen from both ends' means both devices list each "
-                   + "other. Devices known only from a neighbour table are not queried unless you follow management addresses (bounded by Max devices).",
-            Classes = { "description" },
-        };
+        var hint = Ui.Explained("Read-only SNMP (LLDP-MIB, CISCO-CDP-MIB); links only as devices report them.",
+            "Read-only SNMP (LLDP-MIB, CISCO-CDP-MIB). A link is shown only where a device reports it; 'seen from both ends' means both devices list each "
+                   + "other. Devices known only from a neighbour table are not queried unless you follow management addresses (bounded by Max devices).");
         var tabs = new TabControl
         {
             Items =

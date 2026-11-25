@@ -156,12 +156,9 @@ internal sealed class BulkDnsAuditWindow : Window
         var form = new Form();
         form.Add("Servers", Ui.Row(servers, SnmpTargetForm.Pair("Timeout (s)", timeout)));
         form.Add("Entries", entries);
-        form.Full(new TextBlock
-        {
-            Text = "Read-only: A/AAAA (CNAME chains followed), PTR of every address, and the PTR names looked up again (forward-confirmed reverse DNS). "
-                   + "Several names for one address or several addresses for one name are normal and shown as information. DNS records are never changed.",
-            Classes = { "description" },
-        });
+        form.Full(Ui.Explained("Read-only: forward, reverse and forward-confirmed reverse DNS.",
+            "Read-only: A/AAAA (CNAME chains followed), PTR of every address, and the PTR names looked up again (forward-confirmed reverse DNS). "
+                   + "Several names for one address or several addresses for one name are normal and shown as information. DNS records are never changed."));
         var main = new DockPanel();
         var top = Ui.Row(problemsOnly);
         DockPanel.SetDock(top, Dock.Top);

@@ -101,6 +101,13 @@
     <Setter Property="Background" Value="{DynamicResource IpmResultsSurface}" />
     <Setter Property="RowBackground" Value="Transparent" />
   </Style>
+  <!-- columns can be resized; long cell text ends in an ellipsis and shows in full as a tooltip (TrimmedTextTips) -->
+  <Style Selector="DataGrid">
+    <Setter Property="CanUserResizeColumns" Value="True" />
+  </Style>
+  <Style Selector="DataGridCell TextBlock">
+    <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+  </Style>
   <Style Selector="DataGridRow:nth-child(2n)">
     <Setter Property="Background" Value="{DynamicResource IpmAlternateRow}" />
   </Style>

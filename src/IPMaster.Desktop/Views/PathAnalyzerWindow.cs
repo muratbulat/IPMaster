@@ -211,12 +211,9 @@ internal sealed class PathAnalyzerWindow : Window
                 SnmpTargetForm.Pair("Timeout (ms)", timeout),
             },
         };
-        var hint = new TextBlock
-        {
-            Text = "One ICMP probe per hop per trace. Routers often limit or skip ICMP replies: loss at a hop that later hops do not show is labelled rate "
-                   + "limiting, not forwarding loss. Path MTU uses IPv4 don't-fragment pings between 576 and 1500 bytes.",
-            Classes = { "description" },
-        };
+        var hint = Ui.Explained("One ICMP probe per hop per trace; path MTU uses IPv4 don't-fragment pings.",
+            "One ICMP probe per hop per trace. Routers often limit or skip ICMP replies: loss at a hop that later hops do not show is labelled rate "
+                   + "limiting, not forwarding loss. Path MTU uses IPv4 don't-fragment pings between 576 and 1500 bytes.");
         var lower = new StackPanel { Spacing = 6, Margin = new Thickness(0, 6, 0, 0), Children = { mtuResult, new TextBlock { Text = "Path changes", Classes = { "section" } }, changes, chart } };
         var main = new DockPanel();
         DockPanel.SetDock(lower, Dock.Bottom);

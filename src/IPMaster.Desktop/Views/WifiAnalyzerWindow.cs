@@ -186,7 +186,7 @@ internal sealed class WifiAnalyzerWindow : Window
             Children =
             {
                 SnmpTargetForm.Pair("Adapter", _adapter),
-                new TextBlock { Classes = { "hint" }, Text = "Read-only: IPMaster never connects, disconnects or changes an access point. \"Scan\" asks the adapter for a new scan (about 4 s)." },
+                new TextBlock { Classes = { "hint" }, Text = "Read-only: IPMaster never changes the adapter or an access point. Scan takes about 4 s." },
                 _denied,
             },
         };
@@ -323,13 +323,10 @@ internal sealed class WifiAnalyzerWindow : Window
             ("Evidence", nameof(ChannelRow.Evidence), 0));
         grid.ItemsSource = _channelRows;
         Avalonia.Automation.AutomationProperties.SetName(grid, "Channel scores");
-        var legend = new TextBlock
-        {
-            Classes = { "hint" },
-            Text = "Score: lower is better. Each network heard at −90 dBm or stronger adds overlap × signal weight; partial overlap counts 1.5× (radios cannot coordinate). "
+        var legend = Ui.Explained("Score: lower is better. Busy time is measured only where an access point announces it.",
+            "Score: lower is better. Each network heard at −90 dBm or stronger adds overlap × signal weight; partial overlap counts 1.5× (radios cannot coordinate). "
                    + "Busy time is only \"measured\" when an access point announces it (BSS Load); everything else is inferred from beacons heard at this computer, "
-                   + "which is not where the access point is. Fewer networks is not automatically better. ★ = best allowed channel.",
-        };
+                   + "which is not where the access point is. Fewer networks is not automatically better. ★ = best allowed channel.");
         var top = new StackPanel
         {
             Spacing = Styling.Theme.TightGap, Margin = new Thickness(0, 4, 0, 6),
@@ -492,12 +489,9 @@ internal sealed class WifiAnalyzerWindow : Window
             ("Gateway pings lost (−5 s … +10 s)", nameof(EventRow.Gateway), 200), ("Detail", nameof(EventRow.Detail), 0));
         grid.ItemsSource = _roamRows;
         Avalonia.Automation.AutomationProperties.SetName(grid, "Roaming events");
-        var hint = new TextBlock
-        {
-            Classes = { "hint" },
-            Text = "Events come from Live Monitoring samples. 802.11k/v/r show what the access point advertises in its beacons; Windows does not report whether "
-                   + "this computer used them for a roam. A roam faster than the sampling interval shows no interruption.",
-        };
+        var hint = Ui.Explained("802.11k/v/r as advertised by the access point.",
+            "Events come from Live Monitoring samples. 802.11k/v/r show what the access point advertises in its beacons; Windows does not report whether "
+                   + "this computer used them for a roam. A roam faster than the sampling interval shows no interruption.");
         var top = new StackPanel { Spacing = Styling.Theme.TightGap, Margin = new Thickness(0, 4, 0, 6), Children = { _roamLine, hint } };
         var dock = new DockPanel();
         DockPanel.SetDock(top, Dock.Top);
@@ -582,12 +576,9 @@ internal sealed class WifiAnalyzerWindow : Window
             ("Median", nameof(CoverageRow.Median), 90), ("Best", nameof(CoverageRow.Best), 90), ("Points ≥ −67 dBm", nameof(CoverageRow.Good), 0));
         coverage.ItemsSource = _coverage;
         Avalonia.Automation.AutomationProperties.SetName(coverage, "Coverage by access point");
-        var caption = new TextBlock
-        {
-            Classes = { "hint" },
-            Text = "Click the plan where you stand to capture a measurement there (a fresh scan, about 4 s). The heatmap is an interpolated estimate (inverse "
-                   + "distance weighting) between the numbered points, not a measurement; areas far from every point stay blank. Not heard = −100 dBm.",
-        };
+        var caption = Ui.Explained("Click the plan to measure there (about 4 s). The heatmap is an estimate between points.",
+            "Click the plan where you stand to capture a measurement there (a fresh scan, about 4 s). The heatmap is an interpolated estimate (inverse "
+                   + "distance weighting) between the numbered points, not a measurement; areas far from every point stay blank. Not heard = −100 dBm.");
         var top = new StackPanel
         {
             Spacing = Styling.Theme.TightGap, Margin = new Thickness(0, 4, 0, 6),
@@ -675,12 +666,9 @@ internal sealed class WifiAnalyzerWindow : Window
             RefreshAdvice();
             return Task.CompletedTask;
         }, accent: true);
-        var hint = new TextBlock
-        {
-            Classes = { "hint" },
-            Text = "Recommendations from what was observed: scans (Networks), samples and events (Live Monitoring). Each states its observations and confidence. "
-                   + "IPMaster never changes access-point settings; apply a change yourself if it suits your network.",
-        };
+        var hint = Ui.Explained("Recommendations from the observations; IPMaster never changes an access point.",
+            "Recommendations from what was observed: scans (Networks), samples and events (Live Monitoring). Each states its observations and confidence. "
+                   + "IPMaster never changes access-point settings; apply a change yourself if it suits your network.");
         var top = new StackPanel { Spacing = Styling.Theme.TightGap, Margin = new Thickness(0, 4, 0, 6), Children = { Ui.Row(run), hint } };
         var dock = new DockPanel();
         DockPanel.SetDock(top, Dock.Top);

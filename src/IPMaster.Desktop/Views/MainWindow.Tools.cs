@@ -28,7 +28,7 @@ public partial class MainWindow
         new("LLDP / CDP _Topology Explorer…", (_, _) => new TopologyExplorerWindow()),
         new("Network _Path & MTU Analyzer…", (_, vm) => new PathAnalyzerWindow(vm.Services.GetRequiredService<IPMaster.Core.Monitoring.IRouteTracer>())),
         new("_IP Calculator…", (_, _) => new IpCalculatorWindow(new IpCalculatorViewModel())),
-        new("Download / T_ransfer Calculator…", (_, _) => new TransferCalculatorWindow(new TransferCalculatorViewModel())),
+        new("D_ownload Calculator…", (_, _) => new TransferCalculatorWindow(new TransferCalculatorViewModel())),
         new("_SMTP Client Tester…", (_, vm) => new SmtpTesterWindow(new SmtpTesterViewModel(vm, vm.Services.GetRequiredService<ISmtpTester>()))),
         new("Device IP _Discovery & DHCP Server…", (_, vm) => new DeviceDiscoveryWindow(vm)),
         new("_Wi-Fi Analyzer & Optimizer…", (_, vm) => new WifiAnalyzerWindow(vm.Services.GetRequiredService<IPMaster.Core.Wifi.IWifiProvider>(),
