@@ -1,0 +1,34 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="IPMaster.Desktop.App"
+             RequestedThemeVariant="Default">
+  <Application.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <ResourceInclude Source="avares://IPMaster/Views/Icons.axaml" />
+        <!-- design tokens for both themes (D-098, docs/DEVELOPMENT.md) -->
+        <ResourceInclude Source="avares://IPMaster/Styling/Tokens.axaml" />
+      </ResourceDictionary.MergedDictionaries>
+    </ResourceDictionary>
+  </Application.Resources>
+  <Application.Styles>
+    <FluentTheme DensityStyle="Compact">
+      <FluentTheme.Palettes>
+        <!-- Charcoal dark palette (D-072): surfaces #353535 / #2D2D2D / #292929 / #222222, borders #505050,
+             text #F0F0F0 / #BDBDBD. Accent is not set, so the existing (system) blue is kept. -->
+        <ColorPaletteResources x:Key="Dark"
+                               RegionColor="#FF353535"
+                               AltHigh="#FF353535" AltMediumHigh="#CC353535" AltMedium="#99353535" AltMediumLow="#66353535" AltLow="#33353535"
+                               BaseHigh="#FFF0F0F0" BaseMediumHigh="#FFDCDCDC" BaseMedium="#FFBDBDBD" BaseMediumLow="#FF8C8C8C" BaseLow="#FF505050"
+                               ChromeAltLow="#FFF0F0F0" ChromeWhite="#FFF0F0F0" ChromeGray="#FF8C8C8C" ChromeHigh="#FF505050"
+                               ChromeMediumLow="#FF333333" ChromeMedium="#FF2D2D2D" ChromeLow="#FF222222"
+                               ChromeDisabledHigh="#FF3E3E3E" ChromeDisabledLow="#FF8C8C8C"
+                               ChromeBlackHigh="#FF1E1E1E" ChromeBlackMedium="#CC1E1E1E" ChromeBlackMediumLow="#661E1E1E" ChromeBlackLow="#331E1E1E"
+                               ListLow="#14F0F0F0" ListMedium="#29F0F0F0" />
+      </FluentTheme.Palettes>
+    </FluentTheme>
+    <StyleInclude Source="avares://Avalonia.Controls.DataGrid/Themes/Fluent.xaml" />
+    <!-- shared control styles and semantic classes (D-098) -->
+    <StyleInclude Source="avares://IPMaster/Styling/Controls.axaml" />
+  </Application.Styles>
+</Application>

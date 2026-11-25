@@ -1,0 +1,318 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:IPMaster.Desktop.ViewModels"
+        x:Class="IPMaster.Desktop.Views.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Title="IPMaster"
+        Icon="avares://IPMaster/Assets/ipmaster.ico"
+        Width="1180" Height="740" MinWidth="680" MinHeight="420">
+  <Window.Styles>
+    <Style Selector="DataGrid.multiline DataGridCell TextBlock">
+      <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+  </Window.Styles>
+
+  <DockPanel>
+    <Menu x:Name="MainMenu" DockPanel.Dock="Top">
+      <MenuItem Header="_File">
+        <MenuItem Header="New _Window" InputGesture="Ctrl+N" Click="OnNewWindow" />
+        <Separator />
+        <MenuItem Header="_Load Results…" InputGesture="Ctrl+L" Click="OnLoad" />
+        <MenuItem Header="_Save Results…" InputGesture="Ctrl+S" Click="OnSave" />
+        <MenuItem x:Name="RecentMenu" Header="_Recent Files" />
+        <MenuItem x:Name="AutoLoadSaveItem" Header="_Auto Load/Save to Most Recent File" ToggleType="CheckBox" Click="OnToggleAutoLoadSave" />
+        <Separator />
+        <MenuItem Header="_Import IP/Host Name List…" Click="OnImport" />
+        <MenuItem Header="Import from Active _Directory…" Click="OnImportActiveDirectory" />
+        <MenuItem Header="Current _Config">
+          <MenuItem Header="_Save to File…" Click="OnSaveConfig" />
+          <MenuItem Header="_Load from File…" Click="OnLoadConfig" />
+          <MenuItem Header="_Reset to Default" Click="OnResetConfig" />
+          <Separator />
+          <MenuItem Header="Set _Master Password…" Click="OnSetMasterPassword" />
+          <MenuItem Header="Remove Master _Password…" Click="OnRemoveMasterPassword" />
+        </MenuItem>
+        <Separator />
+        <MenuItem Header="E_xit" Click="OnExit" />
+      </MenuItem>
+      <MenuItem Header="_View">
+        <MenuItem Header="_Visible Columns…" Click="OnColumns" />
+        <MenuItem Header="_Freeze Columns" Click="OnFreeze" />
+        <MenuItem Header="_Unfreeze Columns" Click="OnUnfreeze" />
+        <MenuItem Header="_Remove Sorting" Click="OnRemoveSorting" />
+        <MenuItem Header="_Change Column View…" Click="OnChangeColumnView" />
+        <Separator />
+        <MenuItem Header="_Quick Host Filter" x:Name="QuickFilterMenu" />
+        <MenuItem Header="_Advanced Filter" InputGesture="Ctrl+I" Command="{Binding ToggleFilterPanelCommand}" />
+        <MenuItem Header="_Shares Filter" Command="{Binding ToggleSharesFilterCommand}" />
+        <MenuItem Header="_Find…" InputGesture="Ctrl+F" Click="OnFind" />
+        <Separator />
+        <MenuItem Header="_Tree">
+          <MenuItem x:Name="AutoExpandItem" Header="_Auto Expand" ToggleType="CheckBox" Click="OnToggleAutoExpand" />
+          <MenuItem Header="_Collapse All" Click="OnCollapseAll" />
+          <MenuItem Header="_Expand All" Click="OnExpandAll" />
+        </MenuItem>
+        <MenuItem Header="Row _Spacing">
+          <MenuItem Header="_Compact" Tag="Compact" Click="OnRowSpacing" />
+          <MenuItem Header="_Standard" Tag="Standard" Click="OnRowSpacing" />
+          <MenuItem Header="_Expanded" Tag="Expanded" Click="OnRowSpacing" />
+        </MenuItem>
+        <MenuItem Header="T_oolbar Settings…" Click="OnToolbarSettings" />
+        <MenuItem Header="_Legend" Click="OnLegend" />
+        <MenuItem Header="_Background Scan" Click="OnToggleBackground">
+          <MenuItem.Icon>
+            <CheckBox IsChecked="{Binding BackgroundRunning, Mode=OneWay}" IsHitTestVisible="False" />
+          </MenuItem.Icon>
+        </MenuItem>
+        <MenuItem Header="Background Scan _Log…" Click="OnScanLog" />
+        <MenuItem Header="Use _System Theme" Command="{Binding ToggleSystemThemeCommand}">
+          <MenuItem.Icon>
+            <CheckBox IsChecked="{Binding IsSystemTheme, Mode=OneWay}" IsHitTestVisible="False" />
+          </MenuItem.Icon>
+        </MenuItem>
+        <MenuItem Header="_Dark Mode" Command="{Binding ToggleDarkModeCommand}">
+          <MenuItem.Icon>
+            <CheckBox IsChecked="{Binding IsDarkMode, Mode=OneWay}" IsHitTestVisible="False" />
+          </MenuItem.Icon>
+        </MenuItem>
+      </MenuItem>
+      <MenuItem Header="_Actions">
+        <MenuItem x:Name="StartStopItem" Header="{Binding StartButtonText}" InputGesture="Ctrl+Enter" Command="{Binding StartStopCommand}" />
+        <MenuItem x:Name="PauseItem" Header="{Binding PauseButtonText}" Command="{Binding PauseCommand}" />
+        <MenuItem Header="Rescan All _Displayed Devices">
+          <MenuItem Header="_Full Rescan" Tag="Listed" Click="OnRescanAll" />
+          <MenuItem Header="Rescan Previously _Undiscovered Devices" Tag="Undiscovered" Click="OnRescanAll" />
+          <MenuItem Header="Rescan _Both Displayed and Undiscovered Devices" Tag="Both" Click="OnRescanAll" />
+        </MenuItem>
+        <MenuItem Header="Delete _Inactive Devices…" Click="OnDeleteInactive" />
+        <MenuItem Header="Mo_nitoring">
+          <MenuItem x:Name="StopAllMonitoringItem" Header="_Stop All Monitoring" Command="{Binding StopAllMonitoringCommand}" />
+          <MenuItem x:Name="PauseAllMonitoringItem" Header="_Pause All Monitoring" Command="{Binding PauseAllMonitoringCommand}" />
+          <MenuItem x:Name="ResumeAllMonitoringItem" Header="_Resume All Monitoring" Command="{Binding ResumeAllMonitoringCommand}" />
+          <MenuItem x:Name="ResumeAutomaticMonitoringItem" Header="Resume _Automatic Monitoring (Monitor All)" Command="{Binding ResumeAutomaticMonitoringCommand}" />
+        </MenuItem>
+        <Separator />
+        <MenuItem Header="D_HCP Server Discovery…" Click="OnDhcp" />
+        <MenuItem Header="_UPnP Device Discovery…" Tag="Ssdp" Click="OnDiscovery" />
+        <MenuItem Header="_mDNS Device Discovery…" Tag="Mdns" Click="OnDiscovery" />
+        <MenuItem Header="_WSD Device Discovery…" Tag="Wsd" Click="OnDiscovery" />
+        <MenuItem Header="O_NVIF Device Discovery…" Tag="Onvif" Click="OnDiscovery" />
+        <MenuItem Header="Find Duplicate IP _Addresses…" Click="OnDuplicateIp" />
+        <Separator />
+        <MenuItem Header="Remote _Shutdown…" Click="OnRemoteShutdown" />
+        <MenuItem Header="Send _Message…" Click="OnSendMessage" />
+        <MenuItem Header="Create _Batch File…" Click="OnBatchFile" />
+        <MenuItem Header="Disconnect _Network Drive…" Click="OnDisconnectDrive" />
+        <MenuItem Header="_Clear Results" Command="{Binding ClearResultsCommand}" />
+        <MenuItem Header="C_opy Selected Rows" InputGesture="Ctrl+C" Click="OnCopy" />
+      </MenuItem>
+      <MenuItem Header="_Options">
+        <MenuItem Header="_Scan Options…" InputGesture="Ctrl+O" Click="OnOptions" />
+        <MenuItem Header="_IP Address">
+          <MenuItem Header="_Auto Detect Local IP Range…" Click="OnDetect" />
+          <MenuItem Header="Detect IP Range from _Host Name…" Click="OnDetectHost" />
+          <MenuItem Header="Detect _External IP Address…" Click="OnExternalIp" />
+        </MenuItem>
+        <MenuItem Header="I_gnored IP Addresses…" Click="OnIgnored" />
+        <Separator />
+        <MenuItem Header="_Wake-On-LAN Manager…" Click="OnWolManager" />
+        <MenuItem Header="_Friendly Names / Comments…" Click="OnFriendlyNames" />
+        <MenuItem Header="_Virtual Columns…" Click="OnVirtualColumns" />
+        <Separator />
+        <MenuItem Header="_Credential Manager…" Click="OnCredentialManager" />
+        <MenuItem Header="Remote W_MI…" Tag="Wmi" InputGesture="Ctrl+W" Click="OnQueryManager" />
+        <MenuItem Header="Remote _Registry…" Tag="Registry" Click="OnQueryManager" />
+        <MenuItem Header="Remote _Files…" Tag="Files" Click="OnQueryManager" />
+        <MenuItem Header="Remote _Services…" Tag="Services" Click="OnQueryManager" />
+        <MenuItem Header="Remote _Groups…" Tag="Groups" Click="OnQueryManager" />
+        <MenuItem Header="Remote _Performance…" Tag="Performance" Click="OnQueryManager" />
+        <MenuItem Header="Remote Power_Shell…" Tag="PowerShell" Click="OnQueryManager" />
+        <MenuItem Header="Remote Scrip_ting…" Tag="Script" Click="OnQueryManager" />
+        <MenuItem Header="Remote SN_MP…" Tag="Snmp" Click="OnQueryManager" />
+        <MenuItem Header="Remote SS_H…" Tag="Ssh" Click="OnQueryManager" />
+        <MenuItem Header="Remote _XML…" Tag="Xml" Click="OnQueryManager" />
+        <MenuItem Header="Remote _JSON…" Tag="Json" Click="OnQueryManager" />
+        <MenuItem Header="Integration with _Nmap…" Tag="Nmap" Click="OnQueryManager" />
+        <MenuItem Header="Remote P_ython…" Tag="Python" Click="OnQueryManager" />
+      </MenuItem>
+      <MenuItem Header="_Bookmarks" x:Name="BookmarksMenu" />
+      <MenuItem Header="_Reports">
+        <MenuItem Header="_Compare Scans…" Click="OnCompare" />
+        <MenuItem Header="_Device Inventory…" Click="OnInventory" />
+      </MenuItem>
+      <MenuItem Header="_Tools" x:Name="ToolsMenu" />
+      <MenuItem Header="_Help">
+        <MenuItem Header="_Navigator…" InputGesture="F1" Click="OnNavigator" />
+        <MenuItem Header="_About IPMaster…" Click="OnAbout" />
+      </MenuItem>
+    </Menu>
+
+    <!-- Toolbar -->
+    <Border DockPanel.Dock="Top" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" BorderThickness="0,0,0,1" Padding="4,2">
+      <StackPanel x:Name="ToolbarPanel" Orientation="Horizontal" Spacing="2">
+        <Button Classes="tool" ToolTip.Tip="Clear results" Command="{Binding ClearResultsCommand}"><PathIcon Data="{StaticResource IconClear}" /></Button>
+        <Button Classes="tool" ToolTip.Tip="Load results (Ctrl+L)" Click="OnLoad"><PathIcon Data="{StaticResource IconOpen}" /></Button>
+        <Button Classes="tool" ToolTip.Tip="Save results (Ctrl+S)" Click="OnSave"><PathIcon Data="{StaticResource IconSave}" /></Button>
+        <Separator Width="1" Margin="4,2" />
+        <Button Classes="tool" ToolTip.Tip="Collapse all" Click="OnCollapseAll"><PathIcon Data="{StaticResource IconCollapse}" /></Button>
+        <Button Classes="tool" ToolTip.Tip="Expand all" Click="OnExpandAll"><PathIcon Data="{StaticResource IconExpand}" /></Button>
+        <Button Classes="tool" ToolTip.Tip="Find (Ctrl+F)" Click="OnFind"><PathIcon Data="{StaticResource IconFind}" /></Button>
+        <Separator Width="1" Margin="4,2" />
+        <Button Classes="tool" ToolTip.Tip="Paste an address from the clipboard" Click="OnPaste"><PathIcon Data="{StaticResource IconPaste}" /></Button>
+        <Button Classes="tool" ToolTip.Tip="Import IP/host name list" Click="OnImport"><PathIcon Data="{StaticResource IconImport}" /></Button>
+        <Separator Width="1" Margin="4,2" />
+        <ToggleButton Classes="tool" ToolTip.Tip="Shares filter: only devices with shared folders" IsChecked="{Binding OnlySharedFolders, Mode=OneWay}" Command="{Binding ToggleSharesFilterCommand}"><PathIcon Data="{StaticResource IconShare}" /></ToggleButton>
+        <ToggleButton Classes="tool" ToolTip.Tip="Advanced filter (Ctrl+I)" IsChecked="{Binding FilterPanelVisible, Mode=OneWay}" Command="{Binding ToggleFilterPanelCommand}"><PathIcon Data="{StaticResource IconFilter}" /></ToggleButton>
+        <Separator Width="1" Margin="4,2" />
+        <Button Classes="tool" ToolTip.Tip="Scan options (Ctrl+O)" Click="OnOptions"><PathIcon Data="{StaticResource IconOptions}" /></Button>
+        <Button Classes="tool" ToolTip.Tip="DHCP server discovery" Click="OnDhcp"><PathIcon Data="{StaticResource IconDhcp}" /></Button>
+        <Button Classes="tool" ToolTip.Tip="Wake-On-LAN manager" Click="OnWolManager"><PathIcon Data="{StaticResource IconPower}" /></Button>
+        <Button Classes="tool" ToolTip.Tip="Detect local IP range" Click="OnDetect"><PathIcon Data="{StaticResource IconDetect}" /></Button>
+        <Button Classes="tool" ToolTip.Tip="Toggle dark mode" Command="{Binding ToggleDarkModeCommand}"><PathIcon Data="{StaticResource IconTheme}" /></Button>
+      </StackPanel>
+    </Border>
+
+    <!-- Address bar -->
+    <Border DockPanel.Dock="Top" Padding="6,4" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" BorderThickness="0,0,0,1">
+      <Grid ColumnDefinitions="*,Auto">
+        <ItemsControl ItemsSource="{Binding Ranges}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="vm:RangeEntryViewModel">
+              <Grid ColumnDefinitions="Auto,3*,Auto,Auto,2*,Auto" Margin="0,1">
+                <CheckBox Grid.Column="0" IsChecked="{Binding Enabled}" AutomationProperties.Name="Include this range" ToolTip.Tip="Include this range in the scan" MinWidth="0" />
+                <TextBox Grid.Column="1" Text="{Binding Target}" AutomationProperties.Name="IP range" PlaceholderText="192.168.1.1-192.168.1.254, 10.0.0.0/24, 2001:db8::/120, ff02::1%12, host name"
+                         ToolTip.Tip="{Binding Error}" Margin="2,0" />
+                <ToggleButton Grid.Column="2" Classes="tool" IsChecked="{Binding OctetMode}" AutomationProperties.Name="Octet range mode" Margin="2,0"
+                              ToolTip.Tip="Octet range mode: each octet varies independently (IPv4)">
+                  <PathIcon Data="{StaticResource IconOctet}" />
+                </ToggleButton>
+                <Button Grid.Column="3" Classes="tool" AutomationProperties.Name="Convert range and CIDR" ToolTip.Tip="Convert between range and CIDR"
+                        Command="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).ConvertCidrCommand}" CommandParameter="{Binding}">
+                  <PathIcon Data="{StaticResource IconCidr}" />
+                </Button>
+                <TextBox Grid.Column="4" Text="{Binding Comment}" AutomationProperties.Name="Range comment" PlaceholderText="Comment" Margin="2,0" />
+                <Button Grid.Column="5" Classes="tool" AutomationProperties.Name="Remove this range" ToolTip.Tip="Remove this range"
+                        Command="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).RemoveRangeCommand}" CommandParameter="{Binding}">
+                  <PathIcon Data="{StaticResource IconRemove}" Width="12" Height="12" />
+                </Button>
+              </Grid>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top" Spacing="4" Margin="8,1,0,0">
+          <Button Classes="tool" AutomationProperties.Name="Add a range" ToolTip.Tip="Add a range" Command="{Binding AddRangeCommand}"><PathIcon Data="{StaticResource IconAdd}" /></Button>
+          <Button Command="{Binding StartStopCommand}" MinWidth="130" Classes="accent">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <PathIcon Data="{StaticResource IconPlay}" IsVisible="{Binding !IsScanning}" Width="12" Height="12" />
+              <PathIcon Data="{StaticResource IconStop}" IsVisible="{Binding IsScanning}" Width="12" Height="12" />
+              <TextBlock Text="{Binding StartButtonText}" />
+            </StackPanel>
+          </Button>
+          <Button Command="{Binding PauseCommand}" IsVisible="{Binding IsScanning}" MinWidth="90">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <PathIcon Data="{StaticResource IconPause}" Width="12" Height="12" />
+              <TextBlock Text="{Binding PauseButtonText}" />
+            </StackPanel>
+          </Button>
+        </StackPanel>
+      </Grid>
+    </Border>
+
+    <!-- Advanced filter panel -->
+    <Border DockPanel.Dock="Top" Padding="6,4" IsVisible="{Binding FilterPanelVisible}" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" BorderThickness="0,0,0,1">
+      <StackPanel Spacing="3">
+        <ItemsControl ItemsSource="{Binding FilterConditions}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="vm:FilterConditionViewModel">
+              <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,1">
+                <ComboBox ItemsSource="{Binding Columns}" SelectedItem="{Binding Column}" AutomationProperties.Name="Filter column" Width="200" DisplayMemberBinding="{ReflectionBinding Header}" />
+                <ComboBox ItemsSource="{x:Static vm:FilterConditionViewModel.OperationNames}" SelectedIndex="{Binding OperationIndex}" AutomationProperties.Name="Filter operation" Width="150" />
+                <TextBox Text="{Binding Value}" AutomationProperties.Name="Filter value" Width="260" PlaceholderText="value" />
+                <Button Classes="tool" AutomationProperties.Name="Remove condition" ToolTip.Tip="Remove condition" Click="OnRemoveCondition"><PathIcon Data="{StaticResource IconRemove}" Width="12" Height="12" /></Button>
+              </StackPanel>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+        <StackPanel Orientation="Horizontal" Spacing="10">
+          <Button Content="Add condition" Click="OnAddCondition" />
+          <CheckBox Content="All conditions must match" IsChecked="{Binding FilterMatchAll}" />
+          <CheckBox Content="Show only matching devices" IsChecked="{Binding FilterShowOnlyMatching}" />
+          <Button Content="Save filter…" Click="OnSaveFilter" />
+          <Button Content="Clear" Command="{Binding ClearFilterCommand}" />
+          <TextBlock Text="{Binding FilterError}" Classes="error" VerticalAlignment="Center" />
+        </StackPanel>
+      </StackPanel>
+    </Border>
+
+    <!-- Shares filter panel -->
+    <Border DockPanel.Dock="Top" Padding="6,4" IsVisible="{Binding SharesFilterVisible}" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" BorderThickness="0,0,0,1">
+      <StackPanel Orientation="Horizontal" Spacing="12">
+        <TextBlock Text="Share types:" VerticalAlignment="Center" FontWeight="SemiBold" />
+        <TextBlock Text="(none ticked = any type)" VerticalAlignment="Center" Classes="label" />
+        <CheckBox x:Name="ShareStandard" Content="Standard" Tag="Standard" Click="OnShareCategory" />
+        <CheckBox Content="Writable" Tag="Writable" Click="OnShareCategory" />
+        <CheckBox Content="Restricted" Tag="Restricted" Click="OnShareCategory" />
+        <CheckBox Content="Administrative" Tag="Administrative" Click="OnShareCategory" />
+        <CheckBox Content="Printer" Tag="Printer" Click="OnShareCategory" />
+      </StackPanel>
+    </Border>
+
+    <!-- Find bar -->
+    <Border DockPanel.Dock="Top" Padding="6,4" IsVisible="{Binding FindVisible}" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" BorderThickness="0,0,0,1">
+      <StackPanel Orientation="Horizontal" Spacing="6">
+        <TextBlock Text="Find:" VerticalAlignment="Center" />
+        <TextBox x:Name="FindBox" AutomationProperties.Name="Find text" Text="{Binding FindText}" Width="280" KeyDown="OnFindKeyDown" />
+        <Button Content="Next" Click="OnFindNext" />
+        <Button Content="Previous" Click="OnFindPrevious" />
+        <Button Content="Close" Click="OnFindClose" />
+        <TextBlock x:Name="FindStatus" Classes="status" />
+      </StackPanel>
+    </Border>
+
+    <!-- Background scan panel (BKG-01) -->
+    <Border DockPanel.Dock="Bottom" Padding="6,3" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" BorderThickness="0,1,0,0">
+      <StackPanel Orientation="Horizontal" Spacing="10">
+        <ToggleSwitch x:Name="BackgroundSwitch" AutomationProperties.Name="Background scan" OnContent="Background scan" OffContent="Background scan" IsChecked="{Binding BackgroundRunning, Mode=OneWay}" Click="OnBackgroundSwitch" />
+        <TextBlock Text="{Binding BackgroundStatus}" Classes="status" TextWrapping="NoWrap" />
+        <Button Content="Show Scan Log" Click="OnScanLog" Padding="8,2" />
+        <Button Content="Events…" Click="OnBackgroundEvents" Padding="8,2" />
+        <Button Content="File Output…" Click="OnFileOutput" Padding="8,2" />
+        <!-- live monitoring, kept apart from the background scan controls (D-100) -->
+        <Border Width="1" Margin="4,2" Background="{DynamicResource IpmBorder}" />
+        <TextBlock Text="{Binding MonitoringStatus}" Classes="status" TextWrapping="NoWrap" AutomationProperties.LiveSetting="Polite" />
+        <TextBlock Text="{Binding MonitoringTally}" VerticalAlignment="Center" ToolTip.Tip="{Binding MonitoringTallyText}" AutomationProperties.Name="{Binding MonitoringTallyText}" />
+        <Button Content="Stop All" Command="{Binding StopAllMonitoringCommand}" Padding="8,2"
+                AutomationProperties.Name="Stop all monitoring" ToolTip.Tip="Stop monitoring every device (history is kept; scans are not affected)" />
+        <Button Content="Pause" Command="{Binding PauseAllMonitoringCommand}" IsVisible="{Binding IsMonitoringRunning}" Padding="8,2"
+                AutomationProperties.Name="Pause all monitoring" ToolTip.Tip="Send no pings until Resume; monitored devices and history are kept" />
+        <Button Content="Resume" Command="{Binding ResumeAllMonitoringCommand}" IsVisible="{Binding IsMonitoringPaused}" Padding="8,2"
+                AutomationProperties.Name="Resume all monitoring" />
+        <Button Content="Resume Automatic" Command="{Binding ResumeAutomaticMonitoringCommand}" IsVisible="{Binding AutomaticMonitoringSuppressed}" Padding="8,2"
+                AutomationProperties.Name="Resume automatic monitoring" ToolTip.Tip="Monitor All enrols online devices again" />
+      </StackPanel>
+    </Border>
+
+    <!-- Status bar -->
+    <Border DockPanel.Dock="Bottom" Padding="6,3" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" BorderThickness="0,1,0,0">
+      <Grid ColumnDefinitions="*,Auto,Auto,Auto">
+        <TextBlock Grid.Column="0" Text="{Binding StatusText}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" AutomationProperties.LiveSetting="Polite" ToolTip.Tip="{Binding StatusText}" />
+        <ProgressBar Grid.Column="1" IsVisible="{Binding ProgressVisible}" AutomationProperties.Name="Scan progress" Value="{Binding ProgressPercent}" IsIndeterminate="{Binding ProgressIndeterminate}" Minimum="0" Maximum="100" Margin="8,0" MinHeight="10" MinWidth="0" Width="180" VerticalAlignment="Center" />
+        <TextBlock Grid.Column="2" Text="{Binding WorkersText}" VerticalAlignment="Center" Margin="8,0" />
+        <TextBlock Grid.Column="3" Text="{Binding DevicesText}" VerticalAlignment="Center" Margin="8,0" Background="Transparent" ToolTip.Tip="Right-click to choose the statistic">
+          <TextBlock.ContextMenu>
+            <ContextMenu>
+              <MenuItem Header="Online devices" Tag="Online" Click="OnStatistic" />
+              <MenuItem Header="Offline devices" Tag="Offline" Click="OnStatistic" />
+              <MenuItem Header="Filtered devices" Tag="Filtered" Click="OnStatistic" />
+            </ContextMenu>
+          </TextBlock.ContextMenu>
+        </TextBlock>
+      </Grid>
+    </Border>
+
+    <!-- Results (columns are created from the shared column catalogue in code) -->
+    <DataGrid x:Name="Grid" IsReadOnly="True" SelectionMode="Extended"
+              CanUserReorderColumns="True" CanUserResizeColumns="True" CanUserSortColumns="True"
+              HeadersVisibility="Column" KeyDown="OnGridKeyDown" DoubleTapped="OnGridDoubleTapped" />
+  </DockPanel>
+</Window>

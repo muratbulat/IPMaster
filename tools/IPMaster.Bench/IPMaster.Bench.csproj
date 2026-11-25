@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Benchmark harness with SYNTHETIC probes. Never shipped; not referenced by the app. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>ipmaster-bench</AssemblyName>
+    <ServerGarbageCollection>false</ServerGarbageCollection>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\IPMaster.Core\IPMaster.Core.csproj" />
+    <!-- results-model benchmark (NFR-04): the UI-independent ResultsView lives in the desktop assembly -->
+    <ProjectReference Include="..\..\src\IPMaster.Desktop\IPMaster.Desktop.csproj" />
+  </ItemGroup>
+</Project>

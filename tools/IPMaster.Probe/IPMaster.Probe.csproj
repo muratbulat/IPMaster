@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Developer diagnostic: runs the discovery services against the local network and prints results. Not shipped. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\IPMaster.Infrastructure\IPMaster.Infrastructure.csproj" />
+  </ItemGroup>
+</Project>

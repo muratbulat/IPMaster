@@ -1,0 +1,470 @@
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Headless;
+using Avalonia.Media;
+using Avalonia.Styling;
+using Avalonia.VisualTree;
+using IPMaster.Desktop;
+using IPMaster.Desktop.Styling;
+using IPMaster.Desktop.ViewModels;
+using IPMaster.Desktop.Views;
+using IPMaster.Core.Scanning;
+using IPMaster.Infrastructure;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+
+namespace IPMaster.Tests;
+
+/// <summary>
+/// One headless Avalonia session per test process (D-098): the real <see cref="App"/> styles and tokens, Skia rendering
+/// so windows can be captured. Settings go to a temporary folder, never the user's. Set IPMASTER_UI_SNAPSHOTS to a folder
+/// to keep the rendered PNGs for review (docs/DEVELOPMENT.md, visual QA).
+/// </summary>
+public static class HeadlessUi
+{
+    private static readonly Lazy<HeadlessUnitTestSession> Session = new(() =>
+    {
+        Environment.SetEnvironmentVariable("IPMASTER_CONFIG_DIR", Path.Combine(Path.GetTempPath(), "ipmaster-ui-tests-" + Environment.ProcessId));
+        return HeadlessUnitTestSession.StartNew(typeof(HeadlessUi));
+    });
+
+    private static readonly Lazy<ServiceProvider> Services = new(() => new ServiceCollection()
+        .AddLogging(b => b.SetMinimumLevel(LogLevel.Warning)).AddIPMaster().AddSingleton<MainWindowViewModel>()
+        .AddSingleton<IPMaster.Core.Wifi.IWifiProvider>(new SyntheticWifi()) // tests never use the real Wi-Fi adapter
+        .BuildServiceProvider());
+
+    public static AppBuilder BuildAvaloniaApp() => AppBuilder.Configure<App>().UseSkia().UseHeadless(new AvaloniaHeadlessPlatformOptions { UseHeadlessDrawing = false });
+
+    public static Task Run(Action action) => Session.Value.Dispatch(action, TestContext.Current.CancellationToken);
+
+    public static Task RunAsync(Func<Task> action) => Session.Value.Dispatch(async () =>
+    {
+        await action();
+        return true;
+    }, TestContext.Current.CancellationToken);
+
+    internal static MainWindowViewModel Vm => Services.Value.GetRequiredService<MainWindowViewModel>();
+
+    internal static T Service<T>() where T : notnull => Services.Value.GetRequiredService<T>();
+
+    public static string? SnapshotDirectory => Environment.GetEnvironmentVariable("IPMASTER_UI_SNAPSHOTS") is { Length: > 0 } d ? Directory.CreateDirectory(d).FullName : null;
+
+    public static void SetTheme(ThemeVariant variant) => Application.Current!.RequestedThemeVariant = variant;
+
+    public static void Snapshot(Window window, string name)
+    {
+        if (SnapshotDirectory is not { } dir) return;
+        var frame = window.CaptureRenderedFrame();
+#pragma warning disable CS0618 // the encoder-options overload is not needed for a review PNG
+        frame?.Save(Path.Combine(dir, string.Concat(name.Split(Path.GetInvalidFileNameChars())) + ".png"));
+#pragma warning restore CS0618
+    }
+
+    /// <summary>WCAG 2 contrast ratio of two opaque colours (alpha composited over <paramref name="over"/>).</summary>
+    public static double Contrast(Color fg, Color bg, Color over)
+    {
+        static Color Blend(Color c, Color under) => c.A == 255 ? c : Color.FromRgb(
+            (byte)(((c.R * c.A) + (under.R * (255 - c.A))) / 255), (byte)(((c.G * c.A) + (under.G * (255 - c.A))) / 255), (byte)(((c.B * c.A) + (under.B * (255 - c.A))) / 255));
+        static double L(Color c)
+        {
+            static double Ch(byte v)
+            {
+                var s = v / 255.0;
+                return s <= 0.03928 ? s / 12.92 : Math.Pow((s + 0.055) / 1.055, 2.4);
+            }
+
+            return (0.2126 * Ch(c.R)) + (0.7152 * Ch(c.G)) + (0.0722 * Ch(c.B));
+        }
+
+        var b = Blend(bg, over);
+        double l1 = L(Blend(fg, b)), l2 = L(b);
+        return (Math.Max(l1, l2) + 0.05) / (Math.Min(l1, l2) + 0.05);
+    }
+}
+
+[CollectionDefinition("Headless UI", DisableParallelization = true)]
+public class HeadlessUiGroup;
+
+[Collection("Headless UI")]
+public class UiDesignSystemTests
+{
+    private static readonly ThemeVariant[] Variants = [ThemeVariant.Light, ThemeVariant.Dark];
+
+    [Fact]
+    public Task Every_token_resolves_in_both_themes() => HeadlessUi.Run(() =>
+    {
+        foreach (var variant in Variants)
+        {
+            foreach (var key in Theme.AllBrushKeys) Assert.True(Theme.Brush(key, variant) is ISolidColorBrush, $"{key} missing in {variant}");
+        }
+
+        // text tokens really differ between the themes (no dark-only or light-only value)
+        foreach (var key in new[] { "IpmTextPrimary", "IpmTextSecondary", "IpmError", "IpmResultsSurface", "IpmChartText" })
+            Assert.NotEqual(((ISolidColorBrush)Theme.Brush(key, ThemeVariant.Light)!).Color, ((ISolidColorBrush)Theme.Brush(key, ThemeVariant.Dark)!).Color);
+    });
+
+    [Fact]
+    public Task Text_tokens_meet_wcag_aa_contrast_on_the_window_and_results_surfaces() => HeadlessUi.Run(() =>
+    {
+        var surfaces = new Dictionary<ThemeVariant, Color[]>
+        {
+            [ThemeVariant.Light] = [Colors.White, Color.Parse("#FFF3F3F3")], // theme-exception: Fluent light window and chrome surfaces
+            [ThemeVariant.Dark] = [Color.Parse("#FF353535"), Color.Parse("#FF292929"), Color.Parse("#FF2D2D2D")], // theme-exception: D-072 surfaces
+        };
+        foreach (var (variant, backgrounds) in surfaces)
+        {
+            foreach (var key in new[] { "IpmTextPrimary", "IpmTextSecondary", "IpmSuccess", "IpmWarning", "IpmError", "IpmInfo", "IpmChartText" })
+            {
+                var fg = ((ISolidColorBrush)Theme.Brush(key, variant)!).Color;
+                foreach (var bg in backgrounds)
+                {
+                    var ratio = HeadlessUi.Contrast(fg, bg, bg);
+                    Assert.True(ratio >= 4.5, $"{key} on {bg} in {variant}: {ratio:0.00}:1");
+                }
+            }
+
+            // banner tints keep normal text readable
+            var text = ((ISolidColorBrush)Theme.Brush("IpmTextPrimary", variant)!).Color;
+            foreach (var key in new[] { "IpmSuccessSurface", "IpmWarningSurface", "IpmErrorSurface", "IpmInfoSurface" })
+            {
+                var tint = ((ISolidColorBrush)Theme.Brush(key, variant)!).Color;
+                Assert.True(HeadlessUi.Contrast(text, tint, backgrounds[0]) >= 4.5, $"text on {key} in {variant}");
+            }
+        }
+    });
+
+    [Fact]
+    public Task Style_classes_follow_a_runtime_theme_switch() => HeadlessUi.Run(() =>
+    {
+        var error = new TextBlock { Text = "failed", Classes = { Theme.Classes.Error } };
+        var status = new TextBlock { Text = "ok", Classes = { Theme.Classes.Status } };
+        var window = new Window { Content = new StackPanel { Children = { error, status } }, Width = 200, Height = 100 };
+        window.Show();
+        try
+        {
+            HeadlessUi.SetTheme(ThemeVariant.Light);
+            Dispatch();
+            var light = ((ISolidColorBrush)error.Foreground!).Color;
+            Assert.Equal(((ISolidColorBrush)Theme.Brush("IpmError", ThemeVariant.Light)!).Color, light);
+            HeadlessUi.SetTheme(ThemeVariant.Dark);
+            Dispatch();
+            Assert.Equal(((ISolidColorBrush)Theme.Brush("IpmError", ThemeVariant.Dark)!).Color, ((ISolidColorBrush)error.Foreground!).Color);
+            Assert.Equal(((ISolidColorBrush)Theme.Brush("IpmTextSecondary", ThemeVariant.Dark)!).Color, ((ISolidColorBrush)status.Foreground!).Color);
+            Theme.SetState(status, Theme.Classes.Warning);
+            Dispatch();
+            Assert.Equal(((ISolidColorBrush)Theme.Brush("IpmWarning", ThemeVariant.Dark)!).Color, ((ISolidColorBrush)status.Foreground!).Color);
+            Theme.SetState(status, null);
+            Assert.DoesNotContain(Theme.Classes.Warning, status.Classes);
+        }
+        finally
+        {
+            window.Close();
+            HeadlessUi.SetTheme(ThemeVariant.Default);
+        }
+    });
+
+    public static TheoryData<string> ToolNames() => [.. MainWindow.ToolEntries.Select(t => t.Header)];
+
+    [Theory]
+    [MemberData(nameof(ToolNames))]
+    public Task Every_tool_window_opens_in_both_themes_with_no_action_cut_off(string header) => HeadlessUi.Run(() =>
+    {
+        var entry = MainWindow.ToolEntries.Single(t => t.Header == header);
+        foreach (var variant in Variants)
+        {
+            HeadlessUi.SetTheme(variant);
+            var window = entry.Open(null!, HeadlessUi.Vm);
+            try
+            {
+                window.Show();
+                Dispatch();
+                var name = header.Replace("_", "", StringComparison.Ordinal).TrimEnd('…');
+                HeadlessUi.Snapshot(window, $"{name} - {variant}");
+                window.Width = Math.Max(window.MinWidth, 400);
+                window.Height = Math.Max(window.MinHeight, 300);
+                Dispatch();
+                HeadlessUi.Snapshot(window, $"{name} - {variant} - minimum size");
+                AssertNoActionCutOff(window, name);
+            }
+            finally
+            {
+                window.Close();
+            }
+        }
+
+        HeadlessUi.SetTheme(ThemeVariant.Default);
+    });
+
+    /// <summary>The other registered windows (menus outside Tools): the same theme, render and minimum-size checks.</summary>
+    internal static readonly Dictionary<string, Func<Window>> OtherWindows = new()
+    {
+        ["Options"] = () => new OptionsWindow { DataContext = new OptionsViewModel(HeadlessUi.Vm.SettingsForEditing(), HeadlessUi.Vm.Probes) },
+        ["Navigator"] = () => new NavigatorWindow([new IPMaster.Core.Navigation.NavigatorItem(IPMaster.Core.Navigation.NavigatorKind.Command, "Options", "Options", "Options")]),
+        ["UPnP Discovery"] = () => new DiscoveryWindow("UPnP Devices", IPMaster.Core.Discovery.DiscoveryProtocol.Ssdp, (_, _, _) => Task.FromResult<IReadOnlyList<IPMaster.Core.Discovery.DiscoveredDevice>>([])),
+        ["DHCP Server Discovery"] = () => new DhcpWindow(new IPMaster.Infrastructure.Discovery.DhcpDiscovery(), "", _ => Task.CompletedTask),
+        ["Duplicate IP Detection"] = () => new DuplicateIpWindow(HeadlessUi.Service<IPMaster.Infrastructure.Discovery.DuplicateIpScanner>(), _ => ""),
+        ["Wake-on-LAN Manager"] = () => new WolManagerWindow(new IPMaster.Core.Management.WolSettings(), HeadlessUi.Service<IPMaster.Infrastructure.Management.WakeOnLanSender>(), _ => Task.CompletedTask),
+        ["Compare Columns"] = () => new CompareWindow(IPMaster.Core.Results.ColumnCatalog.All, HeadlessUi.Vm.Format),
+        ["Device Inventory"] = () => new InventoryWindow(HeadlessUi.Vm),
+        ["Background Scan Log"] = () => new ScanLogWindow(HeadlessUi.Vm.Ops.Log),
+        ["WMI Query Manager"] = () => new QueryManagerWindow(HeadlessUi.Vm, IPMaster.Core.Queries.QueryKind.Wmi),
+        ["SNMP Query Manager"] = () => new QueryManagerWindow(HeadlessUi.Vm, IPMaster.Core.Queries.QueryKind.Snmp),
+        ["Script Query Manager"] = () => new QueryManagerWindow(HeadlessUi.Vm, IPMaster.Core.Queries.QueryKind.Script),
+    };
+
+    public static TheoryData<string> OtherWindowNames() => [.. OtherWindows.Keys];
+
+    [Theory]
+    [MemberData(nameof(OtherWindowNames))]
+    public Task Other_windows_open_in_both_themes_with_no_action_cut_off(string name) => HeadlessUi.Run(() =>
+    {
+        foreach (var variant in Variants)
+        {
+            HeadlessUi.SetTheme(variant);
+            var window = OtherWindows[name]();
+            try
+            {
+                window.Show();
+                Dispatch();
+                HeadlessUi.Snapshot(window, $"{name} - {variant}");
+                window.Width = Math.Max(window.MinWidth, 400);
+                window.Height = Math.Max(window.MinHeight, 300);
+                Dispatch();
+                HeadlessUi.Snapshot(window, $"{name} - {variant} - minimum size");
+                AssertNoActionCutOff(window, name);
+            }
+            finally
+            {
+                window.Close();
+            }
+        }
+
+        HeadlessUi.SetTheme(ThemeVariant.Default);
+    });
+
+    [Fact]
+    public Task A_message_dialog_follows_its_owner_theme() => HeadlessUi.Run(() =>
+    {
+        HeadlessUi.SetTheme(ThemeVariant.Dark);
+        var owner = new Window { Width = 600, Height = 400 };
+        owner.Show();
+        try
+        {
+            _ = Dialogs.MessageAsync(owner, "Confirm", "Delete the selected item?", confirm: true);
+            Dispatch();
+            var dialog = Assert.Single(owner.OwnedWindows);
+            Assert.Equal(ThemeVariant.Dark, dialog.ActualThemeVariant);
+            HeadlessUi.Snapshot(dialog, "Message dialog - Dark");
+            AssertNoActionCutOff(dialog, "Message dialog");
+            dialog.Close();
+        }
+        finally
+        {
+            owner.Close();
+            HeadlessUi.SetTheme(ThemeVariant.Default);
+        }
+    });
+
+    [Fact]
+    public Task Charts_redraw_with_the_new_theme_tokens() => HeadlessUi.Run(() =>
+    {
+        var chart = new LatencyChart { Width = 300, Height = 120, Samples = [new IPMaster.Core.Monitoring.MonitorSample(DateTimeOffset.UtcNow, 12)] };
+        var window = new Window { Content = chart, Width = 300, Height = 120 };
+        window.Show();
+        try
+        {
+            HeadlessUi.SetTheme(ThemeVariant.Light);
+            Dispatch();
+            var light = Pixel(window.CaptureRenderedFrame()!, 150, 60);
+            HeadlessUi.SetTheme(ThemeVariant.Dark);
+            Dispatch();
+            var dark = Pixel(window.CaptureRenderedFrame()!, 150, 60);
+            Assert.NotEqual(light, dark);
+            Assert.True(Luma(light) > Luma(dark), $"light {light} should be brighter than dark {dark}");
+        }
+        finally
+        {
+            window.Close();
+            HeadlessUi.SetTheme(ThemeVariant.Default);
+        }
+    });
+
+    private static Color Pixel(Avalonia.Media.Imaging.WriteableBitmap frame, int x, int y)
+    {
+        using var fb = frame.Lock();
+        var bytes = new byte[4];
+        System.Runtime.InteropServices.Marshal.Copy(fb.Address + (y * fb.RowBytes) + (x * 4), bytes, 0, 4);
+        return fb.Format == Avalonia.Platform.PixelFormat.Bgra8888 ? Color.FromArgb(bytes[3], bytes[2], bytes[1], bytes[0]) : Color.FromArgb(bytes[3], bytes[0], bytes[1], bytes[2]); // theme-exception: test pixel decoding
+    }
+
+    private static double Luma(Color c) => (0.2126 * c.R) + (0.7152 * c.G) + (0.0722 * c.B);
+
+    internal static void Dispatch()
+    {
+        Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+        AvaloniaHeadlessPlatform.ForceRenderTimerTick();
+        Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+    }
+
+    /// <summary>A visible button must lie inside the window, unless it sits in a scrollable area.</summary>
+    internal static void AssertNoActionCutOff(Window window, string name)
+    {
+        var client = new Rect(window.ClientSize);
+        foreach (var button in window.GetVisualDescendants().OfType<Button>().Where(b => b.IsEffectivelyVisible && b.Bounds.Width > 0))
+        {
+            if (button.GetVisualAncestors().Any(a => a is ScrollViewer) || button.TemplatedParent is not null) continue;
+            if (button.TranslatePoint(new Point(0, 0), window) is not { } p) continue;
+            var r = new Rect(p, button.Bounds.Size);
+            Assert.True(client.Contains(r.BottomRight - new Point(1, 1)) && client.Contains(r.TopLeft),
+                $"{name}: '{button.Content}' at {r} is outside {client.Size} at the minimum window size");
+        }
+    }
+}
+
+/// <summary>
+/// Lint (D-098): views take colours from design tokens. A presentation colour in a view (named brush, colour literal,
+/// hex colour, opacity-dimmed text in AXAML) fails the build unless the line says why with a "theme-exception:" comment.
+/// </summary>
+public class UiColourLintTests
+{
+    private static readonly System.Text.RegularExpressions.Regex Forbidden = new(
+        @"Brushes\.(?!Transparent\b)\w+|Colors\.(?!Transparent\b)\w+|Color\.(FromArgb|FromRgb|FromUInt32|Parse)\(|""#[0-9A-Fa-f]{6,8}""|(Foreground|Background|BorderBrush)=""(?!\{|Transparent"")[A-Za-z#]|Opacity=""0\.",
+        System.Text.RegularExpressions.RegexOptions.Compiled);
+
+    private static string Root()
+    {
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "IPMaster.slnx"))) dir = dir.Parent;
+        return dir?.FullName ?? throw new InvalidOperationException("repository root not found");
+    }
+
+    [Fact]
+    public void Views_use_design_tokens_not_hard_coded_colours()
+    {
+        var desktop = Path.Combine(Root(), "src", "IPMaster.Desktop");
+        var files = Directory.EnumerateFiles(desktop, "*.*", SearchOption.AllDirectories)
+            .Where(f => f.EndsWith(".cs", StringComparison.Ordinal) || f.EndsWith(".axaml", StringComparison.Ordinal))
+            .Where(f => !f.Contains(Path.DirectorySeparatorChar + "obj" + Path.DirectorySeparatorChar, StringComparison.Ordinal)
+                        && !f.Contains(Path.DirectorySeparatorChar + "bin" + Path.DirectorySeparatorChar, StringComparison.Ordinal)
+                        && !f.Contains(Path.DirectorySeparatorChar + "Styling" + Path.DirectorySeparatorChar, StringComparison.Ordinal)
+                        && !f.EndsWith("App.axaml", StringComparison.Ordinal) && !f.EndsWith("Icons.axaml", StringComparison.Ordinal));
+        var hits = new List<string>();
+        foreach (var file in files)
+        {
+            var lines = File.ReadAllLines(file);
+            for (var i = 0; i < lines.Length; i++)
+            {
+                if (Forbidden.IsMatch(lines[i]) && !lines[i].Contains("theme-exception:", StringComparison.Ordinal))
+                    hits.Add($"{Path.GetRelativePath(desktop, file)}:{i + 1}: {lines[i].Trim()}");
+            }
+        }
+
+        Assert.True(hits.Count == 0, "Use a token or class from Styling/ (docs/DEVELOPMENT.md), or mark a justified exception:\n" + string.Join('\n', hits));
+    }
+}
+
+/// <summary>Synthetic Wi-Fi environment for the window tests: a few networks in every band and a 5 GHz connection.</summary>
+internal sealed class SyntheticWifi : IPMaster.Core.Wifi.IWifiProvider
+{
+    private static readonly IPMaster.Core.Wifi.WifiBss[] Networks =
+    [
+        WifiFixtures.Bss("Office", "02:10:00:00:00:01", -48, 5180, WifiFixtures.Rsn(2, 8), WifiFixtures.VhtOperation(1, 42), WifiFixtures.BssLoad(7, 60), WifiFixtures.Ie(70, 0, 0, 0, 0, 0), WifiFixtures.Ie(127, 0, 0, 0x08)),
+        WifiFixtures.Bss("Office", "02:10:00:00:00:02", -71, 2437, WifiFixtures.Rsn(2), WifiFixtures.HtOperation(6, 0)),
+        WifiFixtures.Bss("Office", "02:10:00:00:00:03", -66, 5500, WifiFixtures.Rsn(2), WifiFixtures.VhtOperation(1, 106)),
+        WifiFixtures.Bss("Neighbour", "02:20:00:00:00:01", -60, 2412, WifiFixtures.Rsn(2), WifiFixtures.HtOperation(1, 1), WifiFixtures.Ie(7, (byte)'D', (byte)'E', (byte)' ')),
+        WifiFixtures.Bss("Cafe", "02:30:00:00:00:01", -82, 2462, WifiFixtures.Rsn(2), WifiFixtures.HtOperation(11, 0)),
+        WifiFixtures.Bss("", "02:40:00:00:00:01", -77, 5200, WifiFixtures.Rsn(2), WifiFixtures.VhtOperation(1, 42)),
+        WifiFixtures.Bss("Lab6", "02:50:00:00:00:01", -63, 6135, WifiFixtures.Rsn(2), WifiFixtures.Ie(255, 36, 0x00, 0x00, 0x02, 0x01, 0xFF, 0xFF, 37, 0x02, 39, 0, 6)),
+    ];
+
+    public CapabilityStatus Capability { get; } = CapabilityStatus.Yes("synthetic");
+
+    public Task<Observation<IReadOnlyList<IPMaster.Core.Wifi.WifiAdapter>>> AdaptersAsync(CancellationToken ct) =>
+        Task.FromResult(Observation<IReadOnlyList<IPMaster.Core.Wifi.WifiAdapter>>.Ok(
+            [new IPMaster.Core.Wifi.WifiAdapter(WifiFixtures.Adapter, "Synthetic Wi-Fi adapter", "connected", null, [])], DateTimeOffset.UtcNow));
+
+    public Task<Observation<IReadOnlyList<IPMaster.Core.Wifi.WifiBss>>> ScanAsync(Guid adapter, bool fresh, CancellationToken ct) =>
+        Task.FromResult(Observation<IReadOnlyList<IPMaster.Core.Wifi.WifiBss>>.Ok([.. Networks.Select(n => n with { SeenAt = DateTimeOffset.UtcNow })], DateTimeOffset.UtcNow));
+
+    public Task<Observation<IPMaster.Core.Wifi.WifiConnection>> ConnectionAsync(Guid adapter, CancellationToken ct) =>
+        Task.FromResult(Observation<IPMaster.Core.Wifi.WifiConnection>.Ok(WifiFixtures.Connection("Office", "02:10:00:00:00:01", -48, 5180), DateTimeOffset.UtcNow));
+}
+
+[Collection("Headless UI")]
+public class WifiWindowTests
+{
+    /// <summary>Clicks the plan three times (each a synthetic fresh scan) and shows the heatmap of one network.</summary>
+    private static void MeasureThreePoints(Window window)
+    {
+        var canvas = window.GetVisualDescendants().OfType<SurveyCanvas>().Single();
+        var status = window.GetVisualDescendants().OfType<TextBlock>().Last(t => t.Classes.Contains("status"));
+        var spots = new[] { (0.15, 0.2), (0.8, 0.3), (0.5, 0.85) };
+        for (var n = 0; n < spots.Length; n++)
+        {
+            var r = canvas.ImageRect();
+            var p = canvas.TranslatePoint(new Point(r.X + (spots[n].Item1 * r.Width), r.Y + (spots[n].Item2 * r.Height)), window)!.Value;
+            window.MouseDown(p, Avalonia.Input.MouseButton.Left);
+            window.MouseUp(p, Avalonia.Input.MouseButton.Left);
+            var deadline = DateTime.UtcNow.AddSeconds(10);
+            while (!(status.Text ?? "").StartsWith($"Point {n + 1}:", StringComparison.Ordinal) && DateTime.UtcNow < deadline)
+            {
+                UiDesignSystemTests.Dispatch();
+                Thread.Sleep(20);
+            }
+
+            Assert.StartsWith($"Point {n + 1}:", status.Text, StringComparison.Ordinal);
+        }
+
+        var target = window.GetVisualDescendants().OfType<ComboBox>().First(c => Avalonia.Automation.AutomationProperties.GetName(c) == "Heatmap network");
+        target.SelectedItem = "SSID: Office";
+        UiDesignSystemTests.Dispatch();
+        Assert.NotNull(canvas.Heatmap);
+    }
+
+    [Fact]
+    public Task Every_tab_renders_synthetic_data_in_both_themes() => HeadlessUi.Run(() =>
+    {
+        foreach (var variant in new[] { ThemeVariant.Light, ThemeVariant.Dark })
+        {
+            HeadlessUi.SetTheme(variant);
+            var window = MainWindow.ToolEntries.Single(t => t.Header.Contains("Wi-Fi", StringComparison.Ordinal)).Open(null!, HeadlessUi.Vm);
+            try
+            {
+                window.Show();
+                var networks = window.GetVisualDescendants().OfType<DataGrid>().First(g => Avalonia.Automation.AutomationProperties.GetName(g) == "Networks");
+                var deadline = DateTime.UtcNow.AddSeconds(10);
+                while ((networks.ItemsSource as System.Collections.ICollection)?.Count is null or 0 && DateTime.UtcNow < deadline)
+                {
+                    UiDesignSystemTests.Dispatch();
+                    Thread.Sleep(20);
+                }
+
+                Assert.Equal(7, ((System.Collections.ICollection)networks.ItemsSource!).Count);
+                var tabs = window.GetVisualDescendants().OfType<TabControl>().First();
+                for (var i = 0; i < tabs.ItemCount; i++)
+                {
+                    tabs.SelectedIndex = i;
+                    UiDesignSystemTests.Dispatch();
+                    if (((TabItem)tabs.Items[i]!).Header as string == "Optimization")
+                    {
+                        var analyse = window.GetVisualDescendants().OfType<Button>().First(b => b.Content as string == "Analyse");
+                        analyse.Command?.Execute(null);
+                        analyse.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
+                        UiDesignSystemTests.Dispatch();
+                        var advice = window.GetVisualDescendants().OfType<Border>().Count(b => b.Classes.Contains("banner") && b.IsEffectivelyVisible);
+                        Assert.True(advice > 0, "the advisor shows recommendations");
+                    }
+
+                    if (((TabItem)tabs.Items[i]!).Header as string == "Site Survey") MeasureThreePoints(window);
+                    HeadlessUi.Snapshot(window, $"Wi-Fi Analyzer - {((TabItem)tabs.Items[i]!).Header} - {variant}");
+                }
+            }
+            finally
+            {
+                window.Close();
+            }
+        }
+
+        HeadlessUi.SetTheme(ThemeVariant.Default);
+    });
+}

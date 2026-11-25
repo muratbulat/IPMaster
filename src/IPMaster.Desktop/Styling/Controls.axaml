@@ -1,0 +1,134 @@
+<!--
+  Shared control styles (D-098, docs/DEVELOPMENT.md). Semantic classes, not window-specific values: a view marks a
+  control's role (Classes="error", "status", "section", Border "banner warning", …) and the look comes from here and from
+  Styling/Tokens.axaml. Fluent control templates are not replaced; only density, a few surfaces and roles are set.
+-->
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <!-- toolbar buttons -->
+  <Style Selector="Button.tool">
+    <Setter Property="Padding" Value="6,4" />
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+  </Style>
+  <Style Selector="ToggleButton.tool">
+    <Setter Property="Padding" Value="6,4" />
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+  </Style>
+  <!-- Compact UI (D-083): number boxes without spinner buttons (arrow keys and the mouse wheel still step) -->
+  <Style Selector="NumericUpDown">
+    <Setter Property="ShowButtonSpinner" Value="False" />
+  </Style>
+  <!-- Compact UI (D-083): long explanatory paragraphs are hidden; anything the user must know uses "hint" or a banner -->
+  <Style Selector="TextBlock.note">
+    <Setter Property="IsVisible" Value="False" />
+  </Style>
+  <Style Selector="PathIcon">
+    <Setter Property="Width" Value="16" />
+    <Setter Property="Height" Value="16" />
+  </Style>
+
+  <!-- text roles (TextBlock and SelectableTextBlock) -->
+  <Style Selector=":is(TextBlock).hint">
+    <Setter Property="Foreground" Value="{DynamicResource IpmTextSecondary}" />
+    <Setter Property="TextWrapping" Value="Wrap" />
+    <Setter Property="FontSize" Value="12" />
+  </Style>
+  <Style Selector=":is(TextBlock).description">
+    <Setter Property="Foreground" Value="{DynamicResource IpmTextSecondary}" />
+    <Setter Property="TextWrapping" Value="Wrap" />
+  </Style>
+  <Style Selector=":is(TextBlock).status">
+    <Setter Property="Foreground" Value="{DynamicResource IpmTextSecondary}" />
+    <Setter Property="TextWrapping" Value="Wrap" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+  </Style>
+  <!-- field labels beside or above inputs -->
+  <Style Selector=":is(TextBlock).label">
+    <Setter Property="Foreground" Value="{DynamicResource IpmTextSecondary}" />
+  </Style>
+  <Style Selector=":is(TextBlock).section">
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="Margin" Value="0,4,0,2" />
+  </Style>
+  <!-- the focal result of a calculator (transfer time, required speed) -->
+  <Style Selector=":is(TextBlock).result">
+    <Setter Property="FontSize" Value="28" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+  </Style>
+  <Style Selector=":is(TextBlock).mono">
+    <Setter Property="FontFamily" Value="Cascadia Mono, Consolas, Menlo, monospace" />
+    <Setter Property="FontSize" Value="12.5" />
+  </Style>
+  <!-- states: after the roles, so "status error" shows as an error -->
+  <Style Selector=":is(TextBlock).success">
+    <Setter Property="Foreground" Value="{DynamicResource IpmSuccess}" />
+  </Style>
+  <Style Selector=":is(TextBlock).warning">
+    <Setter Property="Foreground" Value="{DynamicResource IpmWarning}" />
+  </Style>
+  <Style Selector=":is(TextBlock).error">
+    <Setter Property="Foreground" Value="{DynamicResource IpmError}" />
+  </Style>
+  <Style Selector=":is(TextBlock).info">
+    <Setter Property="Foreground" Value="{DynamicResource IpmInfo}" />
+  </Style>
+
+  <!-- banners and verdicts: a tinted box; the text keeps the normal foreground (contrast) -->
+  <Style Selector="Border.banner">
+    <Setter Property="Padding" Value="10,4" />
+    <Setter Property="CornerRadius" Value="4" />
+    <Setter Property="Background" Value="{DynamicResource IpmInfoSurface}" />
+  </Style>
+  <Style Selector="Border.banner.warning">
+    <Setter Property="Background" Value="{DynamicResource IpmWarningSurface}" />
+  </Style>
+  <Style Selector="Border.banner.error">
+    <Setter Property="Background" Value="{DynamicResource IpmErrorSurface}" />
+  </Style>
+  <Style Selector="Border.banner.success">
+    <Setter Property="Background" Value="{DynamicResource IpmSuccessSurface}" />
+  </Style>
+  <!-- report panes and editors -->
+  <Style Selector="TextBox.mono">
+    <Setter Property="FontFamily" Value="Cascadia Mono, Consolas, Menlo, monospace" />
+    <Setter Property="FontSize" Value="12.5" />
+  </Style>
+
+  <!-- results grids: own surface, subtle hover and alternate rows (both themes) -->
+  <Style Selector="DataGrid">
+    <Setter Property="Background" Value="{DynamicResource IpmResultsSurface}" />
+    <Setter Property="RowBackground" Value="Transparent" />
+  </Style>
+  <Style Selector="DataGridRow:nth-child(2n)">
+    <Setter Property="Background" Value="{DynamicResource IpmAlternateRow}" />
+  </Style>
+
+  <!-- Compact tab strips everywhere (D-072, D-083): ~12.5 DIP labels instead of the large Fluent headers -->
+  <Style Selector="TabItem">
+    <Setter Property="FontSize" Value="12.5" />
+    <Setter Property="MinHeight" Value="26" />
+    <Setter Property="Padding" Value="7,3" />
+    <Setter Property="Margin" Value="0,0,2,0" />
+    <Setter Property="BorderThickness" Value="1,1,1,0" />
+    <Setter Property="BorderBrush" Value="{DynamicResource IpmBorder}" />
+    <Setter Property="CornerRadius" Value="3,3,0,0" />
+    <Setter Property="Background" Value="{DynamicResource IpmTabIdle}" />
+  </Style>
+  <Style Selector="TabItem:selected">
+    <Setter Property="Background" Value="{DynamicResource IpmTabSelected}" />
+  </Style>
+  <Style Selector="TabItem:pointerover">
+    <Setter Property="Background" Value="{DynamicResource IpmTabHover}" />
+  </Style>
+  <Style Selector="TabItem /template/ Border#PART_SelectedPipe">
+    <Setter Property="IsVisible" Value="False" />
+  </Style>
+  <!-- the panel under the tabs is a bordered box, like the classic settings dialogs -->
+  <Style Selector="TabControl /template/ ContentPresenter#PART_SelectedContentHost">
+    <Setter Property="BorderBrush" Value="{DynamicResource IpmBorder}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="Padding" Value="6,2,0,0" />
+  </Style>
+</Styles>

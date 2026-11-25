@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+  <PropertyGroup>
+    <NoWarn>$(NoWarn);CA1707;CA1861;CA2007;CA1515;CA1062;xUnit1051;xUnit1031</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" />
+    <!-- headless rendering of the desktop windows in both themes (D-098) -->
+    <PackageReference Include="Avalonia.Headless" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\IPMaster.Core\IPMaster.Core.csproj" />
+    <ProjectReference Include="..\..\src\IPMaster.Infrastructure\IPMaster.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\IPMaster.Cli\IPMaster.Cli.csproj" />
+    <!-- UI-independent results model (ResultsView) lives in the desktop assembly. -->
+    <ProjectReference Include="..\..\src\IPMaster.Desktop\IPMaster.Desktop.csproj" />
+  </ItemGroup>
+</Project>

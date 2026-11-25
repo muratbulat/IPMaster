@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Library since D-103: the single IPMaster executable (src/IPMaster.Desktop) runs it in CLI mode. Never references Avalonia. -->
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <AssemblyName>IPMaster.Cli</AssemblyName>
+    <RootNamespace>IPMaster.Cli</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\IPMaster.Infrastructure\IPMaster.Infrastructure.csproj" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" />
+    <InternalsVisibleTo Include="IPMaster.Tests" />
+  </ItemGroup>
+</Project>

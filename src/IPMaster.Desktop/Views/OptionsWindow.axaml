@@ -1,0 +1,457 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:IPMaster.Desktop.ViewModels"
+        x:Class="IPMaster.Desktop.Views.OptionsWindow"
+        x:DataType="vm:OptionsViewModel"
+        Title="Scan Options"
+        Width="800" Height="640" MinWidth="520" MinHeight="420" FontSize="13.5"
+        WindowStartupLocation="CenterOwner" ShowInTaskbar="False">
+  <Window.Styles>
+    <!-- Compact, dense layout (D-072): ~13.5 DIP body text, small section headings, tight spacing. -->
+    <Style Selector="NumericUpDown">
+      <Setter Property="Width" Value="140" />
+      <Setter Property="HorizontalAlignment" Value="Left" />
+      <Setter Property="FormatString" Value="0" />
+    </Style>
+    <Style Selector="TextBlock.label">
+      <Setter Property="VerticalAlignment" Value="Center" />
+      <Setter Property="Margin" Value="0,0,12,0" />
+    </Style>
+    <Style Selector="TextBlock.above">
+      <Setter Property="Margin" Value="0,0,0,3" />
+    </Style>
+    <Style Selector="TextBlock.section">
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="FontSize" Value="13" />
+      <Setter Property="Margin" Value="0,6,0,0" />
+    </Style>
+    <Style Selector="CheckBox">
+      <Setter Property="MinHeight" Value="26" />
+      <Setter Property="Padding" Value="6,0,0,0" />
+    </Style>
+    <!-- two-column checkbox grid: long labels wrap instead of being clipped -->
+    <Style Selector="UniformGrid.checks > CheckBox">
+      <Setter Property="Margin" Value="0,0,12,2" />
+      <Setter Property="VerticalAlignment" Value="Top" />
+    </Style>
+    <Style Selector="UniformGrid.checks > CheckBox /template/ ContentPresenter">
+      <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+    <Style Selector="TabControl.compact">
+      <Setter Property="Padding" Value="0" />
+    </Style>
+  </Window.Styles>
+  <DockPanel Margin="10,8,10,10">
+    <DockPanel DockPanel.Dock="Bottom" Margin="0,10,0,0" LastChildFill="False">
+      <TextBox x:Name="FindSetting" DockPanel.Dock="Left" Width="220" PlaceholderText="Find a setting…" VerticalAlignment="Center"
+               ToolTip.Tip="Type part of a setting's name and press Enter (Enter again for the next match)."
+               AutomationProperties.Name="Find a setting" />
+      <TextBlock x:Name="FindResult" DockPanel.Dock="Left" Classes="hint" VerticalAlignment="Center" Margin="8,0,0,0" />
+      <Button DockPanel.Dock="Right" Content="Cancel" IsCancel="True" MinWidth="88" Click="OnCancel" Margin="8,0,0,0" />
+      <Button DockPanel.Dock="Right" Content="OK" IsDefault="True" Classes="accent" MinWidth="88" Click="OnOk" />
+      <TextBlock DockPanel.Dock="Right" x:Name="ErrorText" Classes="error" VerticalAlignment="Center" Margin="0,0,8,0" />
+    </DockPanel>
+    <TabControl x:Name="Tabs" Classes="compact">
+      <TabItem Header="General">
+        <ScrollViewer>
+          <StackPanel Spacing="6" Margin="4,8,10,8">
+            <WrapPanel Orientation="Horizontal" ItemSpacing="18" LineSpacing="8">
+              <StackPanel>
+                <TextBlock Classes="above" Text="Max. concurrent probes" />
+                <NumericUpDown Value="{Binding MaxConcurrency}" Minimum="1" Maximum="1024" AutomationProperties.Name="Max. concurrent probes" />
+              </StackPanel>
+              <StackPanel>
+                <TextBlock Classes="above" Text="Max. time per device, s (0 = no limit)" />
+                <NumericUpDown Value="{Binding DeviceDeadlineSeconds}" Minimum="0" Maximum="3600" AutomationProperties.Name="Max. time per device in seconds" />
+              </StackPanel>
+              <StackPanel>
+                <TextBlock Classes="above" Text="Ping timeout, ms" />
+                <NumericUpDown Value="{Binding PingTimeoutMs}" Minimum="50" Maximum="60000" Increment="100" AutomationProperties.Name="Ping timeout in milliseconds" />
+              </StackPanel>
+              <StackPanel>
+                <TextBlock Classes="above" Text="Method" />
+                <ComboBox SelectedIndex="{Binding PingMethodIndex}" Width="200" AutomationProperties.Name="Ping method">
+                  <ComboBoxItem Content="ICMP" />
+                  <ComboBoxItem Content="ARP" IsEnabled="{Binding ArpAvailable}" />
+                  <ComboBoxItem Content="Both ICMP and ARP" IsEnabled="{Binding ArpAvailable}" />
+                </ComboBox>
+              </StackPanel>
+              <StackPanel>
+                <TextBlock Classes="above" Text="Attempts" />
+                <NumericUpDown Value="{Binding PingAttempts}" Minimum="1" Maximum="10" Width="110" AutomationProperties.Name="Attempts" />
+              </StackPanel>
+            </WrapPanel>
+            <TextBlock Classes="hint" Text="{Binding ArpDescription}" />
+            <TextBlock Classes="note" Text="If every address appears active, use ICMP only: a gateway with proxy ARP may answer ARP requests for other subnets. ARP is only used inside local subnets unless allowed below." />
+            <UniformGrid Classes="checks" Columns="2" Margin="0,4,0,0">
+              <CheckBox Content="Always analyse device (even if ping failed)" IsChecked="{Binding AnalyseUnresponsive}" />
+              <CheckBox Content="Show successful ping method" IsChecked="{Binding ShowPingMethod}" />
+              <CheckBox Content="Ping network and broadcast addresses" IsChecked="{Binding PingNetworkAndBroadcast}" />
+              <CheckBox Content="Allow ARP outside current subnet" IsChecked="{Binding AllowArpOutsideSubnet}" IsEnabled="{Binding ArpAvailable}" />
+              <CheckBox Content="Display Time To Live (TTL)" IsChecked="{Binding ShowTtl}" />
+              <CheckBox Content="Detect duplicate MAC addresses" IsChecked="{Binding DetectDuplicateMacs}" />
+              <CheckBox Content="Display inactive devices" IsChecked="{Binding DisplayInactiveDevices}" />
+              <CheckBox Content="Scan in random order" IsChecked="{Binding RandomOrder}" />
+              <CheckBox Content="Show last-scan and last-seen times" IsChecked="{Binding ShowTimestamps}" />
+              <CheckBox Content="Minimise to the notification area" IsChecked="{Binding MinimizeToTray}" ToolTip.Tip="When minimised, IPMaster hides its window and stays in the notification area (system tray)." />
+              <CheckBox Content="Show device type" IsChecked="{Binding ShowDeviceType}" ToolTip.Tip="Device Type is built only from what the scan observed (Windows version, RTSP stream, print ports, SMB shares) plus the NIC vendor when vendor lookup is on. No online service." />
+            </UniformGrid>
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <CheckBox Content="Determine packet loss and jitter, echo requests:" IsChecked="{Binding DeterminePacketLossAndJitter}" />
+              <NumericUpDown Value="{Binding LossProbeCount}" Minimum="2" Maximum="100" Width="110" IsEnabled="{Binding DeterminePacketLossAndJitter}" AutomationProperties.Name="Echo requests for packet loss" />
+            </StackPanel>
+            <CheckBox Content="Geolocation for public IP addresses (optional external service)" IsChecked="{Binding Geolocation}" />
+            <StackPanel Margin="24,0,0,0" Spacing="4" IsEnabled="{Binding Geolocation}">
+              <TextBox Text="{Binding GeoUrlTemplate}" PlaceholderText="https://geo.example.com/json/{ip}" />
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <TextBlock Classes="label" Text="JSON fields: city" />
+                <TextBox Text="{Binding GeoCityField}" Width="110" />
+                <TextBlock Classes="label" Text="region" />
+                <TextBox Text="{Binding GeoRegionField}" Width="110" />
+                <TextBlock Classes="label" Text="country" />
+                <TextBox Text="{Binding GeoCountryField}" Width="110" />
+              </StackPanel>
+              <TextBlock Classes="hint" Text="No service is built in: public addresses are sent only to the HTTPS URL entered here ({ip} is replaced). Private addresses are never looked up. Online device recognition (cloud) is not available." />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <TextBlock Classes="label" Text="Ask for confirmation above (addresses)" />
+              <NumericUpDown Value="{Binding ConfirmationThreshold}" Minimum="256" Maximum="16777216" Increment="1024" Width="160" />
+            </StackPanel>
+          </StackPanel>
+        </ScrollViewer>
+      </TabItem>
+
+      <TabItem Header="Additional">
+        <ScrollViewer>
+          <StackPanel Spacing="6" Margin="0,8,8,8">
+            <CheckBox Content="Resolve host names" IsChecked="{Binding ResolveHostNames}" />
+            <StackPanel Margin="24,0,0,0" Spacing="6" IsEnabled="{Binding ResolveHostNames}">
+              <ComboBox SelectedIndex="{Binding HostNameModeIndex}" Width="380">
+                <ComboBoxItem Content="Fully Qualified Domain Name (FQDN)" />
+                <ComboBoxItem Content="Relative Distinguished Name (host name only)" />
+                <ComboBoxItem Content="Legacy method (DNS, then NetBIOS)" />
+                <ComboBoxItem Content="NetBIOS name only" />
+              </ComboBox>
+              <CheckBox Content="Perform double-reverse lookup (verify name resolves back)" IsChecked="{Binding DoubleReverseLookup}" />
+              <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto" RowSpacing="6">
+                <TextBlock Classes="label" Text="DNS timeout, ms" />
+                <NumericUpDown Grid.Column="1" Value="{Binding DnsTimeoutMs}" Minimum="100" Maximum="60000" Increment="250" />
+                <TextBlock Grid.Row="1" Classes="label" Text="Concurrent DNS lookups" />
+                <NumericUpDown Grid.Row="1" Grid.Column="1" Value="{Binding DnsConcurrency}" Minimum="1" Maximum="512" />
+              </Grid>
+            </StackPanel>
+
+            <CheckBox Content="Resolve MAC addresses" IsChecked="{Binding ResolveMac}" />
+            <StackPanel Margin="24,0,0,0" Spacing="2" IsEnabled="{Binding ResolveMac}">
+              <TextBlock Classes="note" Text="Methods are tried in this order; untick to disable. ARP reads the neighbour cache first and only asks on local subnets." />
+              <ItemsControl ItemsSource="{Binding MacMethods}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="vm:CheckItem">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                      <Button Content="▲" Padding="6,0" ToolTip.Tip="Move up"
+                              Command="{Binding $parent[ItemsControl].((vm:OptionsViewModel)DataContext).MoveMacMethodUpCommand}" CommandParameter="{Binding}" />
+                      <CheckBox Content="{Binding Name}" IsChecked="{Binding IsChecked}" />
+                    </StackPanel>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <TextBlock Classes="label" Text="Router MIB: other routers" />
+                <TextBox Text="{Binding RouterMibRouters}" Width="220" PlaceholderText="10.0.1.1, 10.0.2.1 (gateways are used automatically)" />
+                <TextBlock Classes="label" Text="community" />
+                <TextBox Text="{Binding RouterMibCommunity}" Width="110" />
+              </StackPanel>
+            </StackPanel>
+            <CheckBox Content="Look up monitor information (EDID via the Remote Registry service)" IsChecked="{Binding LookupMonitors}" IsEnabled="{Binding WindowsAvailable}" />
+            <CheckBox Content="Enumerate terminal sessions (users and client addresses)" IsChecked="{Binding ListTerminalSessions}" IsEnabled="{Binding WindowsAvailable}" />
+            <CheckBox Content="Look up network card vendor (offline IEEE OUI registry)" IsChecked="{Binding LookupVendor}" />
+            <StackPanel Margin="24,0,0,0" Orientation="Horizontal" Spacing="8">
+              <Button Content="Download OUI database…" Command="{Binding DownloadOuiCommand}" IsEnabled="{Binding !DownloadingOui}" />
+              <TextBlock Classes="hint" Text="{Binding VendorDescription}" VerticalAlignment="Center" MaxWidth="440" />
+            </StackPanel>
+            <CheckBox Content="Resolve IPv6 addresses (dual-stack hosts, from the neighbour cache)" IsChecked="{Binding ResolveIPv6}" />
+            <CheckBox Content="Grab service banners" IsChecked="{Binding GrabBanners}" />
+            <Expander Header="Select services" Margin="24,0,0,0" IsEnabled="{Binding GrabBanners}">
+              <ItemsControl ItemsSource="{Binding BannerItems}">
+                <ItemsControl.ItemsPanel>
+                  <ItemsPanelTemplate>
+                    <WrapPanel />
+                  </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="vm:CheckItem">
+                    <CheckBox Content="{Binding Name}" IsChecked="{Binding IsChecked}" Width="200" />
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </Expander>
+            <CheckBox Content="Find open RTSP streams (unauthenticated DESCRIBE on common paths)" IsChecked="{Binding FindRtspStreams}" />
+            <CheckBox Content="SSL/TLS certificate information (port 443)" IsChecked="{Binding TlsCertificateInfo}" />
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <TextBlock Classes="label" Text="Service probe timeout, ms" />
+              <NumericUpDown Value="{Binding ServiceTimeoutMs}" Minimum="100" Maximum="60000" Increment="250" />
+            </StackPanel>
+          </StackPanel>
+        </ScrollViewer>
+      </TabItem>
+
+      <TabItem Header="Workstation">
+        <ScrollViewer>
+          <StackPanel Spacing="6" Margin="0,8,8,8">
+            <TextBlock Classes="hint" Text="{Binding WindowsDescription}" />
+            <CheckBox Content="Look up LAN group/domain" IsChecked="{Binding LookupWorkgroup}" />
+            <CheckBox Content="Look up Windows version" IsChecked="{Binding LookupWindowsVersion}" IsEnabled="{Binding WindowsAvailable}" />
+            <CheckBox Content="Enumerate user accounts" IsChecked="{Binding EnumerateAccounts}" IsEnabled="{Binding WindowsAvailable}" />
+            <CheckBox Content="Look up logged-on users" IsChecked="{Binding LookupLoggedOnUsers}" IsEnabled="{Binding WindowsAvailable}" />
+            <CheckBox Content="Look up logged-on SIDs (Remote Registry service)" IsChecked="{Binding LookupLoggedOnSids}" IsEnabled="{Binding WindowsAvailable}" />
+            <CheckBox Content="Look up remote time and date" IsChecked="{Binding LookupRemoteTime}" IsEnabled="{Binding WindowsAvailable}" />
+            <CheckBox Content="Retrieve list of installed applications (Remote Registry service)" IsChecked="{Binding ListInstalledApplications}" IsEnabled="{Binding WindowsAvailable}" />
+            <TextBlock Classes="section" Text="Authentication" />
+            <ComboBox ItemsSource="{Binding CredentialChoices}" SelectedIndex="{Binding WorkstationCredentialIndex}" MinWidth="320" />
+            <TextBlock Classes="note" Text="A specific account opens an authenticated session to \\device\IPC$ for these lookups (and the WMI MAC method)." />
+            <TextBlock Classes="section" Text="User settings" />
+            <CheckBox Content="Omit duplicate account names" IsChecked="{Binding OmitDuplicateAccounts}" />
+            <TextBlock Text="Disregard account names (one pattern per line, * and ? allowed):" />
+            <TextBox Text="{Binding ExcludedAccounts}" AcceptsReturn="True" Height="80" />
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <TextBlock Classes="label" Text="Windows call timeout, ms" />
+              <NumericUpDown Value="{Binding WindowsTimeoutMs}" Minimum="500" Maximum="120000" Increment="1000" />
+            </StackPanel>
+            <TextBlock Classes="section" Text="Authentication" />
+            <TextBlock Classes="note" Text="Lookups use the current Windows account. Specific accounts require the credential manager (planned)." />
+          </StackPanel>
+        </ScrollViewer>
+      </TabItem>
+
+      <TabItem Header="Ports">
+        <ScrollViewer>
+          <StackPanel Spacing="6" Margin="0,8,8,8">
+            <CheckBox Content="Check for open TCP ports" IsChecked="{Binding ScanTcpPorts}" />
+            <StackPanel Margin="24,0,0,0" Spacing="4" IsEnabled="{Binding ScanTcpPorts}">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <TextBox Text="{Binding TcpPorts}" Width="440" PlaceholderText="21, 80, 110-115, 443" />
+                <Button Content="Well-known ports" Command="{Binding SelectWellKnownPortsCommand}" />
+              </StackPanel>
+              <TextBlock Text="{Binding TcpPortsError}" Classes="error" />
+            </StackPanel>
+            <CheckBox Content="Display service names rather than port numbers" IsChecked="{Binding ShowServiceNames}" />
+            <CheckBox Content="Check for open UDP ports (protocol-specific probes; silence is reported as open|filtered)" IsChecked="{Binding ScanUdpPorts}" />
+            <ItemsControl ItemsSource="{Binding UdpItems}" Margin="24,0,0,0" IsEnabled="{Binding ScanUdpPorts}">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <WrapPanel />
+                </ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:CheckItem">
+                  <CheckBox Content="{Binding Name}" IsChecked="{Binding IsChecked}" Width="200" />
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto" RowSpacing="6">
+              <TextBlock Classes="label" Text="SNMP probe community" />
+              <TextBox Grid.Column="1" Text="{Binding SnmpProbeCommunity}" Width="200" HorizontalAlignment="Left" />
+              <TextBlock Grid.Row="1" Classes="label" Text="Port timeout, ms" />
+              <NumericUpDown Grid.Row="1" Grid.Column="1" Value="{Binding PortTimeoutMs}" Minimum="50" Maximum="60000" Increment="100" />
+              <TextBlock Grid.Row="2" Classes="label" Text="Concurrent connections (all devices)" />
+              <NumericUpDown Grid.Row="2" Grid.Column="1" Value="{Binding PortConcurrency}" Minimum="1" Maximum="4096" />
+            </Grid>
+            <CheckBox Content="Scan ports in random order" IsChecked="{Binding RandomPortOrder}" />
+          </StackPanel>
+        </ScrollViewer>
+      </TabItem>
+
+      <TabItem Header="Shares">
+        <StackPanel Spacing="6" Margin="0,8,8,8">
+          <TextBlock Classes="hint" Text="{Binding WindowsDescription}" />
+          <CheckBox Content="Scan for shared resources" IsChecked="{Binding ScanShares}" IsEnabled="{Binding WindowsAvailable}" />
+          <StackPanel Margin="24,0,0,0" Spacing="6" IsEnabled="{Binding ScanShares}">
+            <ComboBox SelectedIndex="{Binding ShareTypeIndex}" Width="260">
+              <ComboBoxItem Content="All" />
+              <ComboBoxItem Content="Folders" />
+              <ComboBoxItem Content="Printers" />
+              <ComboBoxItem Content="Comm. devices" />
+              <ComboBoxItem Content="Administrative shares" />
+              <ComboBoxItem Content="IPC" />
+              <ComboBoxItem Content="Folders and Printers" />
+            </ComboBox>
+            <TextBlock Classes="note" Text="Method: Windows built-in. A portable SMB2 method is not available in this build." />
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <TextBlock Classes="label" Text="Authentication" />
+              <ComboBox ItemsSource="{Binding CredentialChoices}" SelectedIndex="{Binding SharesCredentialIndex}" MinWidth="320" />
+            </StackPanel>
+            <CheckBox Content="Determine disk space" IsChecked="{Binding ShareDiskSpace}" />
+            <CheckBox Content="Enable security and user-permissions scan (usually needs administrator rights)" IsChecked="{Binding ShareSecurity}" />
+            <CheckBox Content="Check for write access" IsChecked="{Binding ShareWriteCheck}" />
+            <TextBlock Classes="hint" Text="The write check creates a uniquely named temporary file in each share with delete-on-close, so it is removed when the handle closes. Leave it off where creating files is not allowed." />
+          </StackPanel>
+        </StackPanel>
+      </TabItem>
+
+      <TabItem Header="Applications">
+        <ScrollViewer>
+          <StackPanel Spacing="8" Margin="0,8,8,8">
+            <TextBlock Classes="note" Text="Applications appear in the device context menu. In the command line use %0 for the IP address, %1 for the host name and %2 for the MAC address. {Name} or {Name:default} prompts for a value (a browse button appears when the name contains file or path); {{ and }} are literal braces; {$Variable} inserts a global variable. Use a vertical bar in names to group applications into submenus." />
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <Button Content="Edit Applications…" Click="OnEditApplications" />
+              <Button Content="Variables…" Click="OnEditVariables" />
+            </StackPanel>
+            <TextBlock Text="{Binding ApplicationsSummary}" TextWrapping="Wrap" FontFamily="Consolas, Menlo, monospace" />
+          </StackPanel>
+        </ScrollViewer>
+      </TabItem>
+
+      <TabItem Header="Browsing">
+        <StackPanel Spacing="6" Margin="0,8,8,8">
+          <TextBlock Classes="section" Text="Host check methods" />
+          <TextBlock Classes="note" Text="Before opening a device, exploring a share, mapping a drive or launching an application, check that the device answers. If none of the enabled checks succeeds you are asked before connecting." />
+          <CheckBox Content="ICMP ping" IsChecked="{Binding CheckIcmp}" />
+          <CheckBox Content="ARP ping (local subnets)" IsChecked="{Binding CheckArp}" IsEnabled="{Binding ArpAvailable}" />
+          <CheckBox Content="NetBIOS ping" IsChecked="{Binding CheckNetBios}" />
+          <TextBlock Classes="section" Text="Background scanning" />
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <TextBlock Classes="label" Text="Mode" />
+            <ComboBox SelectedIndex="{Binding BackgroundModeIndex}" Width="380">
+              <ComboBoxItem Content="Scan for previously undiscovered devices" />
+              <ComboBoxItem Content="Rescan already discovered devices" />
+              <ComboBoxItem Content="Both" />
+            </ComboBox>
+          </StackPanel>
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <TextBlock Classes="label" Text="Delay between rounds, minutes" />
+            <NumericUpDown Value="{Binding RoundDelayMinutes}" Minimum="0" Maximum="1440" Increment="1" Width="140" FormatString="0.##" />
+            <TextBlock Classes="label" Text="Workers" />
+            <NumericUpDown Value="{Binding BackgroundConcurrency}" Minimum="1" Maximum="1024" Width="130" FormatString="0" />
+          </StackPanel>
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <TextBlock Classes="label" Text="A device leaves after this many complete rounds without an answer" />
+            <NumericUpDown Value="{Binding LeaveAfterMisses}" Minimum="1" Maximum="100" Width="120" FormatString="0" />
+          </StackPanel>
+          <CheckBox Content="Clear information about offline devices" IsChecked="{Binding ClearOffline}" />
+          <StackPanel Orientation="Horizontal" Spacing="8" Margin="24,0,0,0" IsEnabled="{Binding ClearOffline}">
+            <TextBlock Classes="label" Text="Keep columns" />
+            <TextBox Text="{Binding KeepOnOffline}" Width="320" PlaceholderText="hostName, vendor, os, shares, queries" />
+          </StackPanel>
+          <TextBlock Classes="note" Text="IP address, MAC address and response time are always kept. The first round is the baseline; stopped or incomplete rounds never count as departures. Events and notifications: background panel → Events…" />
+        </StackPanel>
+      </TabItem>
+
+      <TabItem Header="View">
+        <ScrollViewer>
+          <StackPanel Spacing="6" Margin="0,8,8,8">
+            <Grid ColumnDefinitions="Auto,Auto,Auto" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="6" ColumnSpacing="8">
+              <TextBlock Classes="label" Text="Cell content separator" />
+              <TextBox Grid.Column="1" Text="{Binding CellSeparator}" Width="80" HorizontalAlignment="Left" />
+              <TextBlock Grid.Row="1" Classes="label" Text="Repeating values in a column" />
+              <ComboBox Grid.Row="1" Grid.Column="1" SelectedIndex="{Binding RepeatedValuesIndex}" Width="220">
+                <ComboBoxItem Content="Do nothing (show all)" />
+                <ComboBoxItem Content="Fold repetitions (〃)" />
+                <ComboBoxItem Content="Hide repetitions" />
+              </ComboBox>
+              <TextBlock Grid.Row="2" Classes="label" Text="MAC address format" />
+              <ComboBox Grid.Row="2" Grid.Column="1" SelectedIndex="{Binding MacFormatIndex}" Width="220">
+                <ComboBoxItem Content="AA-BB-CC-DD-EE-FF" />
+                <ComboBoxItem Content="AA:BB:CC:DD:EE:FF" />
+                <ComboBoxItem Content="AABBCCDDEEFF" />
+                <ComboBoxItem Content="aabb.ccdd.eeff" />
+                <ComboBoxItem Content="aa:bb:cc:dd:ee:ff" />
+              </ComboBox>
+              <TextBlock Grid.Row="3" Classes="label" Text="Row spacing" />
+              <ComboBox Grid.Row="3" Grid.Column="1" SelectedIndex="{Binding RowSpacingIndex}" Width="220">
+                <ComboBoxItem Content="Compact" />
+                <ComboBoxItem Content="Standard" />
+                <ComboBoxItem Content="Expanded" />
+              </ComboBox>
+              <TextBlock Grid.Row="4" Classes="label" Text="Odd / even row colour (#RRGGBB)" />
+              <StackPanel Grid.Row="4" Grid.Column="1" Orientation="Horizontal" Spacing="6">
+                <TextBox Text="{Binding OddRowColor}" Width="100" PlaceholderText="theme" />
+                <TextBox Text="{Binding EvenRowColor}" Width="100" PlaceholderText="theme" />
+              </StackPanel>
+              <TextBlock Grid.Row="5" Classes="label" Text="Filter highlight colour" />
+              <TextBox Grid.Row="5" Grid.Column="1" Text="{Binding HighlightColor}" Width="100" HorizontalAlignment="Left" />
+              <TextBlock Grid.Row="6" Classes="label" Text="Table font (family, size)" />
+              <StackPanel Grid.Row="6" Grid.Column="1" Orientation="Horizontal" Spacing="6">
+                <TextBox Text="{Binding FontFamily}" Width="160" PlaceholderText="default" />
+                <NumericUpDown Value="{Binding FontSize}" Minimum="6" Maximum="40" Width="110" />
+              </StackPanel>
+              <TextBlock Grid.Row="7" Classes="label" Text="CSV file delimiter" />
+              <StackPanel Grid.Row="7" Grid.Column="1" Orientation="Horizontal" Spacing="6">
+                <ComboBox SelectedIndex="{Binding CsvDelimiterIndex}" Width="200">
+                  <ComboBoxItem Content="System default" />
+                  <ComboBoxItem Content="Comma (,)" />
+                  <ComboBoxItem Content="Semicolon (;)" />
+                  <ComboBoxItem Content="Tab" />
+                  <ComboBoxItem Content="Custom" />
+                </ComboBox>
+                <TextBox Text="{Binding CsvCustomDelimiter}" MaxLength="1" Width="40" />
+              </StackPanel>
+              <TextBlock Grid.Row="8" Classes="label" Text="CSV file encoding" />
+              <ComboBox Grid.Row="8" Grid.Column="1" SelectedIndex="{Binding CsvEncodingIndex}" Width="200">
+                <ComboBoxItem Content="UTF-8" />
+                <ComboBoxItem Content="UTF-8 with BOM (Excel)" />
+                <ComboBoxItem Content="UTF-16 LE" />
+              </ComboBox>
+            </Grid>
+            <CheckBox Content="Display grid lines" IsChecked="{Binding GridLines}" />
+            <CheckBox Content="Display long values on multiple lines" IsChecked="{Binding MultiLineCells}" />
+            <CheckBox Content="Case-insensitive sorting" IsChecked="{Binding CaseInsensitiveSort}" />
+            <CheckBox Content="Automatically expand devices with shares" IsChecked="{Binding AutoExpand}" />
+            <CheckBox Content="Protect CSV against spreadsheet formula injection (prefix =, +, -, @ with ')" IsChecked="{Binding CsvProtectFormulas}" />
+          </StackPanel>
+        </ScrollViewer>
+      </TabItem>
+
+      <TabItem Header="History">
+        <StackPanel Spacing="6" Margin="0,8,8,8">
+          <CheckBox Content="Record device history" IsChecked="{Binding HistoryEnabled}" />
+          <StackPanel Orientation="Horizontal" Spacing="8" IsEnabled="{Binding HistoryEnabled}">
+            <TextBlock Classes="label" Text="Keep data for, days" />
+            <NumericUpDown Value="{Binding RetentionDays}" Minimum="1" Maximum="3650" Width="140" FormatString="0" />
+          </StackPanel>
+          <WrapPanel IsEnabled="{Binding HistoryEnabled}">
+            <CheckBox Content="First Seen" IsChecked="{Binding ShowFirstSeen}" Margin="0,0,16,0" />
+            <CheckBox Content="Last Seen (History)" IsChecked="{Binding ShowLastSeenHistory}" Margin="0,0,16,0" />
+            <CheckBox Content="Availability" IsChecked="{Binding ShowAvailability}" />
+          </WrapPanel>
+          <TextBlock Classes="note" Text="History is keyed on the MAC address and kept per network (recognised by the gateway's MAC address; named after the Wi-Fi network or the gateway's DNS name). Devices without a usable MAC address — for example hosts behind a router — are not recorded. Enable MAC resolution on the Additional tab. Availability counts only complete scans that covered the device's last address. Data lives in ipmaster.history.db next to the settings file." />
+        </StackPanel>
+      </TabItem>
+
+      <TabItem Header="Monitoring">
+        <StackPanel Spacing="6" Margin="0,8,8,8">
+          <CheckBox Content="Monitor all devices automatically" IsChecked="{Binding MonitorAll}" />
+          <TextBlock Classes="section" Text="Thresholds" />
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <TextBlock Classes="label" Text="Good up to, ms" />
+            <NumericUpDown Value="{Binding GoodLatencyMs}" Minimum="1" Maximum="10000" Width="130" FormatString="0" />
+            <TextBlock Classes="label" Text="Critical above, ms" />
+            <NumericUpDown Value="{Binding CriticalLatencyMs}" Minimum="2" Maximum="60000" Width="130" FormatString="0" />
+          </StackPanel>
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <TextBlock Classes="label" Text="Good loss up to, %" />
+            <NumericUpDown Value="{Binding GoodLossPercent}" Minimum="0" Maximum="100" Increment="0.5" Width="130" FormatString="0.#" />
+            <TextBlock Classes="label" Text="Critical loss from, %" />
+            <NumericUpDown Value="{Binding CriticalLossPercent}" Minimum="0" Maximum="100" Increment="1" Width="130" FormatString="0.#" />
+          </StackPanel>
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <TextBlock Classes="label" Text="Loss and jitter window, samples (1 per second)" />
+            <NumericUpDown Value="{Binding WindowSamples}" Minimum="5" Maximum="3600" Width="130" FormatString="0" />
+            <TextBlock Classes="label" Text="Max devices" />
+            <NumericUpDown Value="{Binding MaxMonitored}" Minimum="1" Maximum="5000" Width="130" FormatString="0" />
+          </StackPanel>
+          <TextBlock Classes="note" Text="Loss = lost ÷ samples in the window. Jitter = mean change between consecutive answered pings. Critical: latency above the critical threshold, loss at or above the critical percentage, or the last 3 pings lost. Good: latency and loss within the good limits. Each device keeps one hour of samples." />
+          <TextBlock Classes="section" Text="Columns" />
+          <WrapPanel>
+            <CheckBox Content="Latency" IsChecked="{Binding ShowLatency}" Margin="0,0,16,0" />
+            <CheckBox Content="History" IsChecked="{Binding ShowHistoryColumn}" Margin="0,0,16,0" />
+            <CheckBox Content="Loss" IsChecked="{Binding ShowLoss}" Margin="0,0,16,0" />
+            <CheckBox Content="Jitter" IsChecked="{Binding ShowJitter}" Margin="0,0,16,0" />
+            <CheckBox Content="Quality" IsChecked="{Binding ShowQuality}" />
+          </WrapPanel>
+        </StackPanel>
+      </TabItem>
+
+
+    </TabControl>
+  </DockPanel>
+</Window>

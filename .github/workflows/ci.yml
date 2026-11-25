@@ -1,0 +1,115 @@
+# Quality gates (D-096): build (warnings are errors), tests, formatting, vulnerable packages and a portable package
+# check of the single executable (D-103). Nothing is released or published from CI.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  build-test:
+    name: Build and test (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - run: dotnet build IPMaster.slnx -c Release
+      # a hung test would block forever: the step has its own limit. The xUnit in-process
+      # runner (not `dotnet test`) is used so that -longRunning names any test still running after 60 s in the log.
+      - run: dotnet tests/IPMaster.Tests/bin/Release/net10.0/IPMaster.Tests.dll -longRunning 60
+        timeout-minutes: 15
+
+  build-macos:
+    name: Build (macOS)
+    runs-on: macos-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - run: dotnet build IPMaster.slnx -c Release
+
+  format:
+    name: Formatting
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - run: dotnet format IPMaster.slnx --verify-no-changes --verbosity minimal
+
+  vulnerable-packages:
+    name: Vulnerable packages
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - run: dotnet restore IPMaster.slnx
+      - name: Fail on known vulnerable packages (direct and transitive)
+        shell: bash
+        run: |
+          dotnet list IPMaster.slnx package --vulnerable --include-transitive | tee vulnerable.txt
+          if grep -q "has the following vulnerable packages" vulnerable.txt; then exit 1; fi
+
+  package:
+    name: Portable package (win-x64, single executable)
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      # publish.ps1 itself fails when the executable is missing, a second executable is present, or the published
+      # IPMaster.exe does not answer --cli /version (D-103)
+      - name: Build the portable package
+        shell: pwsh
+        run: ./scripts/publish.ps1 -Runtimes win-x64 -Root artifacts/ci
+      - name: Verify the package
+        shell: pwsh
+        run: |
+          $exe = 'artifacts/ci/release/win-x64/IPMaster.exe'
+          if (-not (Test-Path $exe)) { throw "missing $exe" }
+          $exes = @(Get-ChildItem artifacts/ci/release/win-x64 -Filter *.exe)
+          if ($exes.Count -ne 1) { throw "expected one executable, found: $($exes.Name -join ', ')" }
+          $zip = @(Get-ChildItem artifacts/ci/packages -Filter 'IPMaster-*-win-x64.zip')
+          if ($zip.Count -ne 1) { throw 'missing the versioned zip' }
+          $version = & $exe --cli /version
+          if ($LASTEXITCODE -ne 0 -or $version -notmatch '^IPMaster \d+\.\d+\.\d+') { throw "unexpected /version output: $version" }
+          & $exe --bogus 2>$null
+          if ($LASTEXITCODE -ne 1) { throw "an unknown argument must exit 1, got $LASTEXITCODE" }
+          & $exe --cli /help > help.txt
+          if ($LASTEXITCODE -ne 0 -or (Get-Content help.txt).Count -lt 10) { throw 'redirected help is missing' }
+          "Package OK: $version ($($zip.Name))"
+      # kept 7 days for inspection; this is not a release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: IPMaster-win-x64
+          path: artifacts/ci/packages/IPMaster-*-win-x64.zip
+          retention-days: 7

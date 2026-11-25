@@ -1,0 +1,48 @@
+# Build and test output
+**/bin/
+**/obj/
+artifacts/
+TestResults/
+coverage/
+*.trx
+*.pdb
+
+# IDE and machine-local files
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+*.sln.docstates
+
+# Local development environment and internal notes (never published)
+AGENTS.md
+CLAUDE.md
+CLAUDE.local.md
+.claude/
+.codex/
+.cursor/
+.bigbang/
+.antigravity/
+.aider*
+.continue/
+.mcp.json
+prompts/
+.prompts/
+docs/AI_*
+docs/*HANDOFF*
+docs/internal/
+
+# Secrets and runtime data
+.env
+.env.*
+*.pfx
+*.p12
+*.key
+*.pem
+*.secrets.json
+ipmaster.settings.json*
+ipmaster.history.db*
+*.db
+*.sqlite
+*.sqlite3

@@ -1,0 +1,75 @@
+# Development
+
+## Prerequisites
+
+- .NET 10 SDK (version pinned in `global.json`).
+- PowerShell 7 for the scripts in `scripts/`.
+- Windows for the full feature set; Linux and macOS build and run the cross-platform parts.
+
+## Debug build
+
+```powershell
+dotnet build IPMaster.slnx           # warnings are errors
+./scripts/dev.ps1                    # framework-dependent build in artifacts/dev/<runtime>/
+```
+
+`dev.ps1` prints the executable's full path, for example `artifacts/dev/win-x64/IPMaster.exe`. That folder holds
+`IPMaster.exe` with its DLLs and symbols (it needs the .NET runtime); it is not the release package.
+
+## Running
+
+```powershell
+./scripts/dev.ps1 -Run               # build and start the desktop app
+./scripts/dev.ps1 -Cli /help         # build and run the command line
+dotnet run --project src/IPMaster.Desktop                   # desktop app
+dotnet run --project src/IPMaster.Desktop -- --cli /help    # command line
+```
+
+Set `IPMASTER_CONFIG_DIR` to a scratch folder while developing, so settings and history are not written next to the
+build output. To debug, launch `src/IPMaster.Desktop/bin/Debug/net10.0/IPMaster.dll` (or the `IPMaster` executable
+beside it) from your IDE, with `--cli <switches>` for the command line.
+
+## Tests
+
+```powershell
+dotnet test --project tests/IPMaster.Tests
+dotnet test --project tests/IPMaster.Tests -- --filter-class "*TransferCalculatorTests"
+```
+
+Tests need no network: protocol tests use loopback fixtures, Wi-Fi tests use synthetic providers, and UI tests render
+windows headlessly in both themes (set `IPMASTER_UI_SNAPSHOTS=<folder>` to keep the PNGs). Process-level tests run the
+built executable, so build the solution first. Formatting is checked with
+`dotnet format IPMaster.slnx --verify-no-changes`.
+
+## Release packages
+
+```powershell
+./scripts/publish.ps1 -Runtimes win-x64       # one runtime
+./scripts/publish.ps1 -All                    # win, linux and osx, x64 and arm64
+```
+
+Each runtime is published self-contained and single-file (one `IPMaster` executable; native libraries are extracted
+at first start where the runtime needs them). The script runs the executable for the build machine's runtime with
+`--cli /version` and refuses to overwrite a release folder that contains settings or history written by running it.
+
+## Output directories
+
+| Folder | Contents |
+|---|---|
+| `artifacts/dev/<runtime>/` | development build (`dev.ps1`) |
+| `artifacts/release/<runtime>/` | unpacked release (`publish.ps1`); macOS: `IPMaster.app` |
+| `artifacts/packages/` | `IPMaster-<version>-<runtime>.zip` / `.tar.gz` |
+| `src/*/bin`, `src/*/obj` | ordinary SDK build output |
+
+`./scripts/clean.ps1` removes all of these (`-WhatIf` lists them first). It stops if a folder contains IPMaster settings
+or history unless `-DiscardUserData` is given.
+
+## UI conventions
+
+- Colours come only from `Styling/Tokens.axaml` (via `{DynamicResource}`, role classes from `Styling/Controls.axaml`, or
+  `ThemedControl.Brush` in custom drawing); spacing and sizes from `Styling/Theme.cs`. A test rejects colour literals in
+  views; a justified exception carries a `// theme-exception: <reason>` comment.
+- Rows of actions use `Ui.Row` (it wraps); tool windows use `ToolKit.Layout` (configuration, actions, results, status).
+- A new tool is one entry in `ToolEntries` (`Views/MainWindow.Tools.cs`); the menu, shortcuts, navigator and UI tests
+  pick it up from there.
+- Never point tools at real infrastructure in tests; use the loopback fixtures.

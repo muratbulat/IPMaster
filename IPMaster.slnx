@@ -1,0 +1,15 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/IPMaster.Cli/IPMaster.Cli.csproj" />
+    <Project Path="src/IPMaster.Core/IPMaster.Core.csproj" />
+    <Project Path="src/IPMaster.Desktop/IPMaster.Desktop.csproj" />
+    <Project Path="src/IPMaster.Infrastructure/IPMaster.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/IPMaster.Tests/IPMaster.Tests.csproj" />
+  </Folder>
+  <Folder Name="/tools/">
+    <Project Path="tools/IPMaster.Bench/IPMaster.Bench.csproj" />
+    <Project Path="tools/IPMaster.Probe/IPMaster.Probe.csproj" />
+  </Folder>
+</Solution>

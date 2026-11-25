@@ -1,0 +1,36 @@
+root = true
+
+[*]
+end_of_line = lf # every tracked file is LF; the format check must agree on Windows and Linux runners
+
+[*.cs]
+indent_style = space
+indent_size = 4
+# House style, checked by `dotnet format --verify-no-changes` in CI: several initializer members may share a line
+csharp_new_line_before_members_in_object_initializers = false
+csharp_new_line_before_members_in_anonymous_types = false
+csharp_indent_case_contents_when_block = false
+# Stylistic analyzer rules disabled deliberately (see docs/DECISIONS.md D-015)
+dotnet_diagnostic.CA1000.severity = none   # static factory members on Observation<T>
+dotnet_diagnostic.CA1848.severity = none   # LoggerMessage delegates; logging is off the hot path
+dotnet_diagnostic.CA1036.severity = none   # AddressKey comparison operators not needed
+dotnet_diagnostic.CA1512.severity = none
+dotnet_diagnostic.CA1513.severity = none
+dotnet_diagnostic.CA1716.severity = none   # namespace/keyword clash heuristics
+dotnet_diagnostic.CA1031.severity = none   # catch-all at isolation boundaries is intentional
+dotnet_diagnostic.CA1303.severity = none   # literal UI strings (localisation planned via resources)
+dotnet_diagnostic.CA2007.severity = none   # ConfigureAwait in app code
+dotnet_diagnostic.CA1819.severity = none
+dotnet_diagnostic.CA1002.severity = none
+dotnet_diagnostic.CA1724.severity = none
+dotnet_diagnostic.CA1826.severity = none   # LINQ FirstOrDefault on lists: readability over micro-optimisation
+dotnet_diagnostic.CA1859.severity = none   # interface return types kept deliberately
+
+[src/IPMaster.Desktop/**.cs]
+dotnet_diagnostic.CA1309.severity = none   # user-facing sorting is culture-aware on purpose
+
+[*.{xml,axaml,csproj,props}]
+indent_size = 2
+
+[src/IPMaster.Infrastructure/Discovery/**.cs]
+dotnet_diagnostic.CA1822.severity = none   # discovery services are DI-registered instances

@@ -1,0 +1,33 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <!-- Original simple geometric icons (24x24 design grid). -->
+  <StreamGeometry x:Key="IconPlay">M7,4 L20,12 L7,20 Z</StreamGeometry>
+  <StreamGeometry x:Key="IconStop">M6,6 H18 V18 H6 Z</StreamGeometry>
+  <StreamGeometry x:Key="IconPause">M6,5 H10 V19 H6 Z M14,5 H18 V19 H14 Z</StreamGeometry>
+  <StreamGeometry x:Key="IconAdd">M11,4 H13 V11 H20 V13 H13 V20 H11 V13 H4 V11 H11 Z</StreamGeometry>
+  <StreamGeometry x:Key="IconRemove">M6.4,5 L12,10.6 L17.6,5 L19,6.4 L13.4,12 L19,17.6 L17.6,19 L12,13.4 L6.4,19 L5,17.6 L10.6,12 L5,6.4 Z</StreamGeometry>
+  <StreamGeometry x:Key="IconClear">M5,6 H19 V8 H5 Z M7,9 H17 L16,21 H8 Z M9,3 H15 V5 H9 Z</StreamGeometry>
+  <StreamGeometry x:Key="IconSave">F1 M4,3 H17 L21,7 V21 H4 Z M7,5 V10 H16 V5 Z M7,14 V19 H18 V14 Z</StreamGeometry>
+  <StreamGeometry x:Key="IconOptions">F1 M10,2 H14 L14.6,5 L16.8,6.2 L19.6,5 L21.6,8.5 L19.3,10.5 V13.5 L21.6,15.5 L19.6,19 L16.8,17.8 L14.6,19 L14,22 H10 L9.4,19 L7.2,17.8 L4.4,19 L2.4,15.5 L4.7,13.5 V10.5 L2.4,8.5 L4.4,5 L7.2,6.2 L9.4,5 Z M12,9 A3,3 0 1 0 12.01,9 Z</StreamGeometry>
+  <StreamGeometry x:Key="IconDetect">F1 M3,5 H21 V16 H3 Z M5,7 V14 H19 V7 Z M9,18 H15 V20 H9 Z</StreamGeometry>
+  <StreamGeometry x:Key="IconImport">M11,3 H13 V13 L16.5,9.5 L18,11 L12,17 L6,11 L7.5,9.5 L11,13 Z M4,19 H20 V21 H4 Z</StreamGeometry>
+  <StreamGeometry x:Key="IconCidr">M4,7 H16 L13,4 L14.4,2.6 L19.8,8 L14.4,13.4 L13,12 L16,9 H4 Z M20,17 H8 L11,20 L9.6,21.4 L4.2,16 L9.6,10.6 L11,12 L8,15 H20 Z</StreamGeometry>
+  <StreamGeometry x:Key="IconOctet">M4,4 H10 V10 H4 Z M14,4 H20 V10 H14 Z M4,14 H10 V20 H4 Z M14,14 H20 V20 H14 Z</StreamGeometry>
+  <StreamGeometry x:Key="IconTheme">M12,3 A9,9 0 1 0 21,12 A7,7 0 0 1 12,3 Z</StreamGeometry>
+  <StreamGeometry x:Key="IconOpen">M3,5 H10 L12,7 H21 V9 H5 L3,19 Z M5.5,10 H23 L20,20 H3 Z</StreamGeometry>
+  <StreamGeometry x:Key="IconCollapse">M4,4 H20 V6 H4 Z M4,11 H14 V13 H4 Z M4,18 H14 V20 H4 Z M17,10 L22,14 L17,18 Z</StreamGeometry>
+  <StreamGeometry x:Key="IconExpand">M4,4 H20 V6 H4 Z M8,11 H20 V13 H8 Z M8,18 H20 V20 H8 Z M3,10 V20 H5 V10 Z</StreamGeometry>
+  <StreamGeometry x:Key="IconFind">F1 M10,3 A7,7 0 1 1 9.99,3 Z M10,5 A5,5 0 1 0 10.01,5 Z M14.5,16 L16,14.5 L21.5,20 L20,21.5 Z</StreamGeometry>
+  <StreamGeometry x:Key="IconPaste">F1 M6,4 H9 A3,3 0 0 1 15,4 H18 V21 H6 Z M8,6 V19 H16 V6 Z M10,9 H14 V11 H10 Z M10,13 H14 V15 H10 Z</StreamGeometry>
+  <StreamGeometry x:Key="IconShare">M3,6 H9 L11,8 H21 V19 H3 Z</StreamGeometry>
+  <StreamGeometry x:Key="IconFilter">M3,4 H21 L14,12 V19 L10,21 V12 Z</StreamGeometry>
+  <StreamGeometry x:Key="IconPower">M11,2 H13 V12 H11 Z M7.05,5.05 L8.46,6.46 A7,7 0 1 0 15.54,6.46 L16.95,5.05 A9,9 0 1 1 7.05,5.05 Z</StreamGeometry>
+  <StreamGeometry x:Key="IconDhcp">F1 M10,2 H14 V8 H10 Z M2,16 H8 V22 H2 Z M9,16 H15 V22 H9 Z M16,16 H22 V22 H16 Z M11,8 H13 V12 H19 V16 H17 V14 H13 V16 H11 V14 H7 V16 H5 V12 H11 Z</StreamGeometry>
+  <!-- Original glyphs (D-072): tool managers and Device Type. -->
+  <StreamGeometry x:Key="IconRadar">F1 M12,2 A10,10 0 1 1 11.99,2 Z M12,4 A8,8 0 1 0 12.01,4 Z M12,7 A5,5 0 1 1 11.99,7 Z M12,9 A3,3 0 1 0 12.01,9 Z M11,11 H13 V13 H11 Z M12,12 L19,5 L20,6 L13,13 Z</StreamGeometry>
+  <StreamGeometry x:Key="IconCode">M8.6,6 L10,7.4 L5.4,12 L10,16.6 L8.6,18 L2.6,12 Z M15.4,6 L21.4,12 L15.4,18 L14,16.6 L18.6,12 L14,7.4 Z M13.2,4 L15.1,4.5 L10.8,20 L8.9,19.5 Z</StreamGeometry>
+  <StreamGeometry x:Key="IconComputer">M3,4 H21 V16 H3 Z M5,6 V14 H19 V6 Z M9,18 H15 V20 H9 Z</StreamGeometry>
+  <StreamGeometry x:Key="IconPrinter">M7,3 H17 V8 H7 Z M4,9 H20 V17 H17 V21 H7 V17 H4 Z M9,14 V19 H15 V14 Z</StreamGeometry>
+  <StreamGeometry x:Key="IconCamera">M3,7 H15 V17 H3 Z M16,10 L21,7 V17 L16,14 Z</StreamGeometry>
+  <StreamGeometry x:Key="IconServer">M4,3 H20 V10 H4 Z M4,12 H20 V19 H4 Z M6,5 V8 H8 V5 Z M6,14 V17 H8 V14 Z</StreamGeometry>
+</ResourceDictionary>

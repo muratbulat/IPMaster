@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <!-- The single IPMaster executable, GUI and CLI (D-103): console subsystem + app.manifest (detached console policy) -->
+    <OutputType>Exe</OutputType>
+    <AssemblyName>IPMaster</AssemblyName>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <RootNamespace>IPMaster.Desktop</RootNamespace>
+    <!-- System.Management (WMI queries) needs built-in COM interop; the app is not trimmed (D-056). -->
+    <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
+    <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+    <ApplicationIcon>Assets\ipmaster.ico</ApplicationIcon>
+    <!-- Shell_NotifyIcon interop for the Windows tray (D-065) -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+  <ItemGroup>
+    <AvaloniaResource Include="Assets\**" />
+  </ItemGroup>
+  <!-- Startup/size (D-082): precompile what start-up runs (ReadyToRun) but not the large libraries only used later
+       (mail, S/MIME crypto, SSH, Linux accessibility); they stay IL and are JIT-compiled on first use. -->
+  <ItemGroup>
+    <PublishReadyToRunExclude Include="BouncyCastle.Cryptography.dll;MimeKit.dll;MailKit.dll;Renci.SshNet.dll;Avalonia.FreeDesktop.AtSpi.dll" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Avalonia" />
+    <PackageReference Include="Avalonia.Desktop" />
+    <PackageReference Include="Avalonia.Themes.Fluent" />
+    <PackageReference Include="Avalonia.Controls.DataGrid" />
+    <PackageReference Include="CommunityToolkit.Mvvm" />
+    <PackageReference Include="Microsoft.Extensions.Logging" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\IPMaster.Infrastructure\IPMaster.Infrastructure.csproj" />
+    <ProjectReference Include="..\IPMaster.Cli\IPMaster.Cli.csproj" />
+    <InternalsVisibleTo Include="IPMaster.Tests" />
+  </ItemGroup>
+</Project>

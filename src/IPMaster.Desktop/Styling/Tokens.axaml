@@ -1,0 +1,104 @@
+<!--
+  IPMaster design tokens (D-098, docs/DEVELOPMENT.md). Every colour a view or a custom-rendered control needs is a
+  semantic token here, defined for Light and Dark. Use them with {DynamicResource Key} in AXAML, with style classes
+  (Styling/Controls.axaml) on code-built controls, and with ThemedControl.Brush(key) in Render(). Spacing, sizes and
+  token keys for C# are in Styling/Theme.cs. The Fluent palette (surfaces, accent, text) stays in App.axaml.
+-->
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <ResourceDictionary.ThemeDictionaries>
+    <ResourceDictionary x:Key="Light">
+      <!-- surfaces -->
+      <SolidColorBrush x:Key="IpmResultsSurface" Color="#FFFFFFFF" />
+      <SolidColorBrush x:Key="IpmSubtleSurface" Color="#0A000000" />
+      <SolidColorBrush x:Key="IpmRowHover" Color="#0F000000" />
+      <SolidColorBrush x:Key="IpmAlternateRow" Color="#06000000" />
+      <SolidColorBrush x:Key="IpmMatchSurface" Color="#70FFC107" />
+      <SolidColorBrush x:Key="IpmUserHighlight" Color="#403D8BFD" />
+      <SolidColorBrush x:Key="IpmTabIdle" Color="#FFF0F0F0" />
+      <SolidColorBrush x:Key="IpmTabHover" Color="#FFE6E6E6" />
+      <SolidColorBrush x:Key="IpmTabSelected" Color="#FFFFFFFF" />
+      <!-- borders -->
+      <SolidColorBrush x:Key="IpmBorder" Color="#FFD0D0D0" />
+      <SolidColorBrush x:Key="IpmBorderSubtle" Color="#FFE6E6E6" />
+      <!-- text -->
+      <SolidColorBrush x:Key="IpmTextPrimary" Color="#FF1B1B1B" />
+      <SolidColorBrush x:Key="IpmTextSecondary" Color="#FF5C5C5C" />
+      <SolidColorBrush x:Key="IpmTextDisabled" Color="#FF8F8F8F" />
+      <SolidColorBrush x:Key="IpmTextOnAccent" Color="#FFFFFFFF" />
+      <!-- states (text) and their tinted surfaces (banners, verdicts) -->
+      <SolidColorBrush x:Key="IpmSuccess" Color="#FF1B7A31" />
+      <SolidColorBrush x:Key="IpmWarning" Color="#FF9C5100" />
+      <SolidColorBrush x:Key="IpmError" Color="#FFC0261A" />
+      <SolidColorBrush x:Key="IpmInfo" Color="#FF005FA8" />
+      <SolidColorBrush x:Key="IpmSuccessSurface" Color="#262E9E44" />
+      <SolidColorBrush x:Key="IpmWarningSurface" Color="#33FFA500" />
+      <SolidColorBrush x:Key="IpmErrorSurface" Color="#26D93F3F" />
+      <SolidColorBrush x:Key="IpmInfoSurface" Color="#1F0078D4" />
+      <SolidColorBrush x:Key="IpmOnline" Color="#FF2E9E44" />
+      <SolidColorBrush x:Key="IpmOffline" Color="#FF9A9A9A" />
+      <!-- charts and graphs -->
+      <SolidColorBrush x:Key="IpmChartSurface" Color="#0A000000" />
+      <SolidColorBrush x:Key="IpmChartText" Color="#FF5C5C5C" />
+      <SolidColorBrush x:Key="IpmChartGrid" Color="#26000000" />
+      <SolidColorBrush x:Key="IpmSeries1" Color="#FF1F6FD1" />
+      <SolidColorBrush x:Key="IpmSeries2" Color="#FFD06A00" />
+      <SolidColorBrush x:Key="IpmSeries3" Color="#FF7A4FC9" />
+      <SolidColorBrush x:Key="IpmSeries4" Color="#FF00897B" />
+      <SolidColorBrush x:Key="IpmChartGood" Color="#FF2E9E44" />
+      <SolidColorBrush x:Key="IpmChartCritical" Color="#FFD13438" />
+      <!-- topology: node states and links (solid = both ends confirm, dashed = one end) -->
+      <SolidColorBrush x:Key="IpmNodeQueried" Color="#FF2E9E44" />
+      <SolidColorBrush x:Key="IpmNodeFailed" Color="#FFD13438" />
+      <SolidColorBrush x:Key="IpmNodeUnknown" Color="#FF8A8A8A" />
+      <SolidColorBrush x:Key="IpmLink" Color="#FF1F6FD1" />
+      <!-- IP calculator bit map -->
+      <SolidColorBrush x:Key="IpmBitNetwork" Color="#FF1F6FD1" />
+      <SolidColorBrush x:Key="IpmBitHost" Color="#FFE3E3E3" />
+      <SolidColorBrush x:Key="IpmBitReserved" Color="#FFB5B5B5" />
+    </ResourceDictionary>
+    <ResourceDictionary x:Key="Dark">
+      <SolidColorBrush x:Key="IpmResultsSurface" Color="#FF292929" />
+      <SolidColorBrush x:Key="IpmSubtleSurface" Color="#12FFFFFF" />
+      <SolidColorBrush x:Key="IpmRowHover" Color="#14FFFFFF" />
+      <SolidColorBrush x:Key="IpmAlternateRow" Color="#08FFFFFF" />
+      <SolidColorBrush x:Key="IpmMatchSurface" Color="#5CFFC107" />
+      <SolidColorBrush x:Key="IpmUserHighlight" Color="#603D8BFD" />
+      <SolidColorBrush x:Key="IpmTabIdle" Color="#FF2D2D2D" />
+      <SolidColorBrush x:Key="IpmTabHover" Color="#FF3C3C3C" />
+      <SolidColorBrush x:Key="IpmTabSelected" Color="#FF353535" />
+      <SolidColorBrush x:Key="IpmBorder" Color="#FF505050" />
+      <SolidColorBrush x:Key="IpmBorderSubtle" Color="#FF424242" />
+      <SolidColorBrush x:Key="IpmTextPrimary" Color="#FFF0F0F0" />
+      <SolidColorBrush x:Key="IpmTextSecondary" Color="#FFBDBDBD" />
+      <SolidColorBrush x:Key="IpmTextDisabled" Color="#FF8C8C8C" />
+      <SolidColorBrush x:Key="IpmTextOnAccent" Color="#FFFFFFFF" />
+      <SolidColorBrush x:Key="IpmSuccess" Color="#FF5FD178" />
+      <SolidColorBrush x:Key="IpmWarning" Color="#FFFFB547" />
+      <SolidColorBrush x:Key="IpmError" Color="#FFFF7B70" />
+      <SolidColorBrush x:Key="IpmInfo" Color="#FF6CB8FF" />
+      <SolidColorBrush x:Key="IpmSuccessSurface" Color="#402E9E44" />
+      <SolidColorBrush x:Key="IpmWarningSurface" Color="#40FFA500" />
+      <SolidColorBrush x:Key="IpmErrorSurface" Color="#45D93F3F" />
+      <SolidColorBrush x:Key="IpmInfoSurface" Color="#3D0078D4" />
+      <SolidColorBrush x:Key="IpmOnline" Color="#FF4CC264" />
+      <SolidColorBrush x:Key="IpmOffline" Color="#FF8A8A8A" />
+      <SolidColorBrush x:Key="IpmChartSurface" Color="#12FFFFFF" />
+      <SolidColorBrush x:Key="IpmChartText" Color="#FFBDBDBD" />
+      <SolidColorBrush x:Key="IpmChartGrid" Color="#2EFFFFFF" />
+      <SolidColorBrush x:Key="IpmSeries1" Color="#FF4EA1FF" />
+      <SolidColorBrush x:Key="IpmSeries2" Color="#FFFFA64D" />
+      <SolidColorBrush x:Key="IpmSeries3" Color="#FFB794F6" />
+      <SolidColorBrush x:Key="IpmSeries4" Color="#FF4DD0C0" />
+      <SolidColorBrush x:Key="IpmChartGood" Color="#FF4CC264" />
+      <SolidColorBrush x:Key="IpmChartCritical" Color="#FFFF6B6B" />
+      <SolidColorBrush x:Key="IpmNodeQueried" Color="#FF4CC264" />
+      <SolidColorBrush x:Key="IpmNodeFailed" Color="#FFFF6B6B" />
+      <SolidColorBrush x:Key="IpmNodeUnknown" Color="#FF9A9A9A" />
+      <SolidColorBrush x:Key="IpmLink" Color="#FF4EA1FF" />
+      <SolidColorBrush x:Key="IpmBitNetwork" Color="#FF2B79D6" />
+      <SolidColorBrush x:Key="IpmBitHost" Color="#FF454545" />
+      <SolidColorBrush x:Key="IpmBitReserved" Color="#FF6A6A6A" />
+    </ResourceDictionary>
+  </ResourceDictionary.ThemeDictionaries>
+</ResourceDictionary>
