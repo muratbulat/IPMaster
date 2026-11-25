@@ -13,6 +13,8 @@ internal static partial class Program
     [STAThread]
     public static int Main(string[] args)
     {
+        // elevated KMS helper (D-104): started by IPMaster itself with "runas"; never shows a window
+        if (args is [Infrastructure.Tools.KmsHelper.Switch, var request]) return Infrastructure.Tools.KmsHelper.Run(request);
         var decision = LaunchRouter.Decide(args);
         switch (decision.Mode)
         {

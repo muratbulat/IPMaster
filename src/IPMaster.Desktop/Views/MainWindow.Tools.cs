@@ -13,7 +13,8 @@ public partial class MainWindow
 {
     internal sealed record ToolEntry(string Header, Func<MainWindow, MainWindowViewModel, Window> Open);
 
-    internal static readonly ToolEntry[] ToolEntries =
+    /// <summary>Alphabetical by caption (accelerator markers and the trailing ellipsis ignored), whatever the order below.</summary>
+    internal static readonly ToolEntry[] ToolEntries = Sorted(
     [
         new("_DNS Diagnostics…", (_, _) => new DnsDiagnosticsWindow()),
         new("_Bulk DNS Audit…", (_, _) => new BulkDnsAuditWindow()),
@@ -33,7 +34,14 @@ public partial class MainWindow
         new("Device IP _Discovery & DHCP Server…", (_, vm) => new DeviceDiscoveryWindow(vm)),
         new("_Wi-Fi Analyzer & Optimizer…", (_, vm) => new WifiAnalyzerWindow(vm.Services.GetRequiredService<IPMaster.Core.Wifi.IWifiProvider>(),
             vm.Services.GetRequiredService<IPMaster.Core.Scanning.IIcmpProbe>())),
-    ];
+        new("_KMS Activation Manager…", (_, vm) => new KmsManagerWindow(vm, vm.Services.GetRequiredService<IKmsService>())),
+    ]);
+
+    /// <summary>The caption as it is sorted: no "_" accelerator markers, no trailing "…" or "...".</summary>
+    internal static string SortKey(string header) => header.Replace("_", "", StringComparison.Ordinal).TrimEnd('…', '.').Trim();
+
+    internal static ToolEntry[] Sorted(IEnumerable<ToolEntry> entries) =>
+        [.. entries.OrderBy(e => SortKey(e.Header), StringComparer.OrdinalIgnoreCase)];
 
     /// <summary>
     /// Device context menu → Tools: the utilities that take a target, prefilled with the selected device (the Syslog Receiver only

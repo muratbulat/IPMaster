@@ -92,6 +92,8 @@ public sealed record SmtpProfile
 public sealed record ToolSettings
 {
     public IReadOnlyList<SmtpProfile> SmtpProfiles { get; set; } = [];
+
+    public IReadOnlyList<KmsProfile> KmsProfiles { get; set; } = [];
 }
 
 public enum SmtpOperation
