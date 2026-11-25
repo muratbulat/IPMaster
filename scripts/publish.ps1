@@ -1,12 +1,15 @@
 <#
 .SYNOPSIS
-  Builds the portable, self-contained IPMaster release: one executable per platform (GUI and CLI, D-103), no installer.
+  Builds the IPMaster release packages: one executable per platform (GUI and CLI), no installer, in two flavours:
+    portable   self-contained: runs without an installed .NET (larger)
+    normal     framework-dependent: needs the .NET 10 runtime installed (smaller)
 .DESCRIPTION
   Output (relative to -Root, default <repo>/artifacts):
-    release/<rid>/            the unpacked package: IPMaster.exe (Windows) or IPMaster (Linux), IPMaster.app (macOS), README.md
-    packages/IPMaster-<version>-<rid>.zip      Windows
-    packages/IPMaster-<version>-<rid>.tar.gz   Linux and macOS (executables keep mode 0755)
-  Single-file, self-contained, ReadyToRun, compressed; native libraries are bundled and extracted at first run where
+    release/<rid>/ and release/<rid>-portable/   the unpacked packages: IPMaster.exe (Windows) or IPMaster (Linux),
+                                                 IPMaster.app (macOS), README.md
+    packages/IPMaster-<version>-<rid>[-portable].zip      Windows
+    packages/IPMaster-<version>-<rid>[-portable].tar.gz   Linux and macOS (executables keep mode 0755)
+  Single-file (portable: self-contained, ReadyToRun and compressed); native libraries are bundled and extracted at first run where
   the runtime needs them (so the app may create files in a temp folder: it is one file to ship, not one file at run time).
   The macOS bundle is not signed or notarised (D-066). The executable built for the machine's own platform is run
   with --cli /version to check it.
@@ -14,6 +17,7 @@
   ./scripts/publish.ps1                                   # win-x64 and win-arm64
   ./scripts/publish.ps1 -Runtimes win-x64
   ./scripts/publish.ps1 -All                              # every supported RID
+  ./scripts/publish.ps1 -Flavor Portable                  # only the self-contained packages
   Refuses to replace a release folder that holds settings or history written by running the portable build there,
   unless -DiscardUserData is given. User data is never packaged.
 #>
@@ -22,6 +26,7 @@ param(
     [switch] $All,
     [string] $Configuration = 'Release',
     [string] $Root = (Join-Path $PSScriptRoot '..' 'artifacts'),
+    [ValidateSet('Both', 'Portable', 'Normal')] [string] $Flavor = 'Both',
     [switch] $DiscardUserData
 )
 $ErrorActionPreference = 'Stop'
@@ -73,19 +78,30 @@ function Write-TarGz([string] $sourceDir, [string] $prefix, [string] $archive, [
 }
 
 $hostRid = [System.Runtime.InteropServices.RuntimeInformation]::RuntimeIdentifier -replace '^(win|linux|osx)[^-]*-', '$1-'
+$flavours = @(
+    @{ Suffix = '-portable'; SelfContained = $true }
+    @{ Suffix = ''; SelfContained = $false }
+) | Where-Object { $Flavor -eq 'Both' -or ($Flavor -eq 'Portable') -eq $_.SelfContained }
 foreach ($rid in $Runtimes) {
-    $dest = Join-Path $releaseRoot $rid
+foreach ($fl in $flavours) {
+    $suffix = $fl.Suffix
+    $sc = if ($fl.SelfContained) { 'true' } else { 'false' }
+    $compress = if ($fl.SelfContained) { 'true' } else { 'false' } # compression needs a self-contained build
+    # ReadyToRun only for the portable flavour: a framework-dependent single file built with it failed fast at start-up
+    # (0xC0000602) on .NET 10.0.15; without it, it starts normally (verified with --cli /version below)
+    $r2r = $compress
+    $dest = Join-Path $releaseRoot "$rid$suffix"
     $data = Get-UserData $dest
     if ($data.Count -gt 0 -and -not $DiscardUserData) {
         throw "$dest contains user data from running the portable build there ($(($data | ForEach-Object Name) -join ', ')). Move it elsewhere, or pass -DiscardUserData to delete it."
     }
     if (Test-Path $dest) { Remove-Item -Recurse -Force $dest }
     $bin = if ($rid -like 'osx-*') { Join-Path $dest 'IPMaster.app' 'Contents' 'MacOS' } else { $dest }
-    dotnet publish (Join-Path $repo 'src/IPMaster.Desktop') -c $Configuration -r $rid --self-contained true `
+    dotnet publish (Join-Path $repo 'src/IPMaster.Desktop') -c $Configuration -r $rid --self-contained $sc `
         -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=none `
-        -p:PublishReadyToRun=true -p:EnableCompressionInSingleFile=true `
+        -p:PublishReadyToRun=$r2r -p:EnableCompressionInSingleFile=$compress `
         -o $bin
-    if ($LASTEXITCODE -ne 0) { throw "publish failed ($rid)" }
+    if ($LASTEXITCODE -ne 0) { throw "publish failed ($rid$suffix)" }
     # third-party native symbol files (SkiaSharp, HarfBuzz) are not needed at run time and add ~100 MB
     Get-ChildItem $dest -Recurse -Filter *.pdb | Remove-Item -Force
     $exe = if ($rid -like 'win-*') { 'IPMaster.exe' } else { 'IPMaster' }
@@ -101,7 +117,7 @@ foreach ($rid in $Runtimes) {
 
     if ($rid -like 'win-*') {
         Copy-Item (Join-Path $repo 'README.md') $dest
-        $zip = Join-Path $packages "IPMaster-$version-$rid.zip"
+        $zip = Join-Path $packages "IPMaster-$version-$rid$suffix.zip"
         if (Test-Path $zip) { Remove-Item $zip }
         Compress-Archive -Path (Join-Path $dest '*') -DestinationPath $zip
         Write-Host "Release:  $((Resolve-Path $exePath).Path)"
@@ -137,8 +153,9 @@ foreach ($rid in $Runtimes) {
     }
 
     Copy-Item (Join-Path $repo 'README.md') $dest
-    $archive = Join-Path $packages "IPMaster-$version-$rid.tar.gz"
-    Write-TarGz $dest "IPMaster-$version-$rid" $archive $execs
+    $archive = Join-Path $packages "IPMaster-$version-$rid$suffix.tar.gz"
+    Write-TarGz $dest "IPMaster-$version-$rid$suffix" $archive $execs
     Write-Host "Release:  $((Resolve-Path $exePath).Path)"
     Write-Host "Package:  $((Resolve-Path $archive).Path)"
+}
 }

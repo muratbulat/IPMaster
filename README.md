@@ -22,7 +22,8 @@ provides a desktop application and a command line.
 
 ## Requirements
 
-- Release packages are self-contained: no .NET installation is needed.
+- Release packages come in two flavours: **portable** (`…-portable`, self-contained, no .NET installation needed) and
+  **normal** (smaller; needs the [.NET 10 runtime](https://dotnet.microsoft.com/download/dotnet/10.0)).
 - Building from source needs the .NET 10 SDK (see `global.json`).
 - Optional: Npcap (Windows) or libpcap for packet capture features; Nmap or Python for their query types.
 
@@ -49,15 +50,16 @@ IPMaster --help                    # launcher options
 The command line writes results to stdout or the given file, diagnostics to stderr, and returns an exit code
 (0 success, 1 usage, 2 targets, 3 settings, 4 output, 6 scan failed, 130 cancelled).
 
-## Portable release
+## Release packages
 
 ```powershell
 ./scripts/publish.ps1 -Runtimes win-x64     # or -All for Windows, Linux and macOS
 ```
 
-The package is written to `artifacts/packages/IPMaster-<version>-<runtime>.zip` (Windows) or `.tar.gz` (Linux, macOS);
-the unpacked release is in `artifacts/release/<runtime>/`. Unpack and run `IPMaster`; settings are stored next to the
-executable when that folder is writable, otherwise in the user's application-data folder.
+The packages are written to `artifacts/packages/`: `IPMaster-<version>-<runtime>-portable.zip` (self-contained) and
+`IPMaster-<version>-<runtime>.zip` (needs the .NET 10 runtime); Linux and macOS use `.tar.gz`. The unpacked releases are
+in `artifacts/release/<runtime>-portable/` and `artifacts/release/<runtime>/`. Unpack and run `IPMaster`; settings are
+stored next to the executable when that folder is writable, otherwise in the user's application-data folder.
 
 ## License
 

@@ -78,7 +78,7 @@ jobs:
           if grep -q "has the following vulnerable packages" vulnerable.txt; then exit 1; fi
 
   package:
-    name: Portable package (win-x64, single executable)
+    name: Packages (win-x64, portable and normal)
     runs-on: windows-latest
     timeout-minutes: 30
     steps:
@@ -100,6 +100,10 @@ jobs:
           if ($exes.Count -ne 1) { throw "expected one executable, found: $($exes.Name -join ', ')" }
           $zip = @(Get-ChildItem artifacts/ci/packages -Filter 'IPMaster-*-win-x64.zip')
           if ($zip.Count -ne 1) { throw 'missing the versioned zip' }
+          if (@(Get-ChildItem artifacts/ci/packages -Filter 'IPMaster-*-win-x64-portable.zip').Count -ne 1) { throw 'missing the portable zip' }
+          $portable = 'artifacts/ci/release/win-x64-portable/IPMaster.exe'
+          if (-not (Test-Path $portable) -or @(Get-ChildItem (Split-Path $portable) -Filter *.exe).Count -ne 1) { throw "portable package: expected one $portable" }
+          if ((& $portable --cli /version) -notmatch '^IPMaster \d') { throw 'the portable executable did not run' }
           $version = & $exe --cli /version
           if ($LASTEXITCODE -ne 0 -or $version -notmatch '^IPMaster \d+\.\d+\.\d+') { throw "unexpected /version output: $version" }
           & $exe --bogus 2>$null

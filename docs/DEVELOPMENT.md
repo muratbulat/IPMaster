@@ -48,8 +48,10 @@ built executable, so build the solution first. Formatting is checked with
 ./scripts/publish.ps1 -All                    # win, linux and osx, x64 and arm64
 ```
 
-Each runtime is published self-contained and single-file (one `IPMaster` executable; native libraries are extracted
-at first start where the runtime needs them). The script runs the executable for the build machine's runtime with
+Each runtime is published in two flavours, both one `IPMaster` executable: **portable** (self-contained, ReadyToRun,
+compressed) and **normal** (framework-dependent: needs the .NET 10 runtime; built without ReadyToRun, which made a
+framework-dependent single file fail at start-up). Native libraries are extracted at first start where the runtime
+needs them. `-Flavor Portable` or `-Flavor Normal` builds only one. The script runs the executable for the build machine's runtime with
 `--cli /version` and refuses to overwrite a release folder that contains settings or history written by running it.
 
 ## Output directories
@@ -57,8 +59,8 @@ at first start where the runtime needs them). The script runs the executable for
 | Folder | Contents |
 |---|---|
 | `artifacts/dev/<runtime>/` | development build (`dev.ps1`) |
-| `artifacts/release/<runtime>/` | unpacked release (`publish.ps1`); macOS: `IPMaster.app` |
-| `artifacts/packages/` | `IPMaster-<version>-<runtime>.zip` / `.tar.gz` |
+| `artifacts/release/<runtime>/`, `artifacts/release/<runtime>-portable/` | unpacked releases (`publish.ps1`); macOS: `IPMaster.app` |
+| `artifacts/packages/` | `IPMaster-<version>-<runtime>[-portable].zip` / `.tar.gz` |
 | `src/*/bin`, `src/*/obj` | ordinary SDK build output |
 
 `./scripts/clean.ps1` removes all of these (`-WhatIf` lists them first). It stops if a folder contains IPMaster settings
