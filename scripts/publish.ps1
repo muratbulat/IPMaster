@@ -34,6 +34,8 @@ param(
     [switch] $DiscardUserData
 )
 $ErrorActionPreference = 'Stop'
+# absolute: the MSI project resolves relative paths against its own folder, not the caller's
+$Root = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Root)
 if ($All) {
     $Runtimes = @('win-x64', 'win-arm64', 'linux-x64', 'linux-arm64', 'osx-x64', 'osx-arm64')
     if (-not $PSBoundParameters.ContainsKey('Format')) { $Format = 'All' }
