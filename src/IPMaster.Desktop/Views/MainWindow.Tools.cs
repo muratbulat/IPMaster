@@ -35,6 +35,7 @@ public partial class MainWindow
         new("_Wi-Fi Analyzer & Optimizer…", (_, vm) => new WifiAnalyzerWindow(vm.Services.GetRequiredService<IPMaster.Core.Wifi.IWifiProvider>(),
             vm.Services.GetRequiredService<IPMaster.Core.Scanning.IIcmpProbe>())),
         new("Win_Get Manager…", (_, vm) => new WinGetManagerWindow(vm.Services.GetRequiredService<IWinGetService>())),
+        new("_Group Policy Viewer…", (_, vm) => new GroupPolicyViewerWindow(vm.Services.GetRequiredService<IGroupPolicyService>())),
         new("_KMS Activation Manager…", (_, vm) => new KmsManagerWindow(vm, vm.Services.GetRequiredService<IKmsService>())),
     ]);
 
