@@ -61,12 +61,16 @@ public sealed class SettingsStore
     /// <summary>True while an encrypted file has not been unlocked.</summary>
     public bool IsLocked { get; private set; }
 
-    public static string ResolveDefaultDirectory()
+    /// <summary>Placed next to the executable by the MSI (D-105): an installed copy never keeps user data in its program folder.</summary>
+    public const string InstalledMarker = "ipmaster.installed";
+
+    public static string ResolveDefaultDirectory() => ResolveDefaultDirectory(AppContext.BaseDirectory, Environment.GetEnvironmentVariable("IPMASTER_CONFIG_DIR"));
+
+    internal static string ResolveDefaultDirectory(string baseDir, string? env)
     {
-        var env = Environment.GetEnvironmentVariable("IPMASTER_CONFIG_DIR");
         if (!string.IsNullOrWhiteSpace(env)) return env;
-        var baseDir = AppContext.BaseDirectory;
-        if (IsWritable(baseDir)) return baseDir;
+        // an elevated run of an installed copy could write to Program Files; uninstall and upgrades must not touch user data
+        if (!File.Exists(Path.Combine(baseDir, InstalledMarker)) && IsWritable(baseDir)) return baseDir;
         return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "IPMaster");
     }
 

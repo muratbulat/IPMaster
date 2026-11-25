@@ -24,7 +24,8 @@ provides a desktop application and a command line.
 ## Requirements
 
 - Release packages come in two flavours: **portable** (`…-portable`, self-contained, no .NET installation needed) and
-  **normal** (smaller; needs the [.NET 10 runtime](https://dotnet.microsoft.com/download/dotnet/10.0)).
+  **normal** (smaller; needs the [.NET 10 runtime](https://dotnet.microsoft.com/download/dotnet/10.0)). Windows also has
+  an MSI installer of the normal flavour.
 - Building from source needs the .NET 10 SDK (see `global.json`).
 - Optional: Npcap (Windows) or libpcap for packet capture features; Nmap or Python for their query types.
 
@@ -61,6 +62,27 @@ The packages are written to `artifacts/packages/`: `IPMaster-<version>-<runtime>
 `IPMaster-<version>-<runtime>.zip` (needs the .NET 10 runtime); Linux and macOS use `.tar.gz`. The unpacked releases are
 in `artifacts/release/<runtime>-portable/` and `artifacts/release/<runtime>/`. Unpack and run `IPMaster`; settings are
 stored next to the executable when that folder is writable, otherwise in the user's application-data folder.
+
+### Windows Installer (MSI)
+
+```powershell
+./scripts/publish.ps1 -Format InstallerMSI -Runtimes win-x64   # -All builds the MSIs with the other packages
+```
+
+`artifacts/packages/IPMaster-<version>-win-x64-setup-framework-dependent.msi` installs the framework-dependent
+`IPMaster.exe` for all users in `Program Files\IPMaster`, adds a Start Menu shortcut and an Installed Apps entry, and
+supports repair and major upgrades. It needs the .NET 10 runtime: the installer checks for it and stops with a link
+when it is missing; it never downloads anything. Settings and history stay in `%APPDATA%\IPMaster` and are not removed
+on uninstall. `SHA256SUMS.txt` lists the checksums of all packages. Built with WiX Toolset v5 (MS-RL).
+
+```powershell
+msiexec /i IPMaster-0.8.0-win-x64-setup-framework-dependent.msi                         # interactive
+msiexec /i IPMaster-0.8.0-win-x64-setup-framework-dependent.msi /qn /norestart          # silent
+msiexec /i IPMaster-0.8.0-win-x64-setup-framework-dependent.msi /qn DESKTOPSHORTCUT=1   # with a desktop shortcut
+msiexec /x IPMaster-0.8.0-win-x64-setup-framework-dependent.msi /qn /norestart          # silent uninstall
+```
+
+A newer installed version is never replaced by an older MSI; uninstall it first.
 
 ## License
 

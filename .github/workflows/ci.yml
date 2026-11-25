@@ -90,7 +90,7 @@ jobs:
       # IPMaster.exe does not answer --cli /version (D-103)
       - name: Build the portable package
         shell: pwsh
-        run: ./scripts/publish.ps1 -Runtimes win-x64 -Root artifacts/ci
+        run: ./scripts/publish.ps1 -Runtimes win-x64 -Root artifacts/ci -Format All
       - name: Verify the package
         shell: pwsh
         run: |
@@ -110,10 +110,17 @@ jobs:
           if ($LASTEXITCODE -ne 1) { throw "an unknown argument must exit 1, got $LASTEXITCODE" }
           & $exe --cli /help > help.txt
           if ($LASTEXITCODE -ne 0 -or (Get-Content help.txt).Count -lt 10) { throw 'redirected help is missing' }
-          "Package OK: $version ($($zip.Name))"
+          # MSI (D-105): built by WiX with ICE validation; publish.ps1 already checked its ProductVersion
+          $msi = @(Get-ChildItem artifacts/ci/packages -Filter 'IPMaster-*-win-x64-setup-framework-dependent.msi')
+          if ($msi.Count -ne 1) { throw 'missing the MSI' }
+          $sums = Get-Content artifacts/ci/packages/SHA256SUMS.txt
+          foreach ($f in @($zip[0], $msi[0])) { if (-not ($sums -match [regex]::Escape($f.Name))) { throw "SHA256SUMS.txt lacks $($f.Name)" } }
+          "Package OK: $version ($($zip.Name), $($msi.Name))"
       # kept 7 days for inspection; this is not a release
       - uses: actions/upload-artifact@v4
         with:
           name: IPMaster-win-x64
-          path: artifacts/ci/packages/IPMaster-*-win-x64.zip
+          path: |
+            artifacts/ci/packages/IPMaster-*-win-x64.zip
+            artifacts/ci/packages/IPMaster-*-win-x64-setup-framework-dependent.msi
           retention-days: 7

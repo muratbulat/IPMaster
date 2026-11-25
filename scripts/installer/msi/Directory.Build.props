@@ -1,0 +1,7 @@
+<Project>
+  <!-- Stops the repository's .NET project settings (target framework, analysers) applying to the installer.
+       Package versions still come from the root Directory.Packages.props. -->
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+</Project>

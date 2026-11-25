@@ -18,6 +18,9 @@
   ./scripts/publish.ps1 -Runtimes win-x64
   ./scripts/publish.ps1 -All                              # every supported RID
   ./scripts/publish.ps1 -Flavor Portable                  # only the self-contained packages
+  ./scripts/publish.ps1 -Format InstallerMSI -Runtimes win-x64   # only the MSI (framework-dependent, D-105)
+  MSI: packages/IPMaster-<version>-<rid>-setup-framework-dependent.msi (WiX v5, scripts/installer/msi); -All builds the
+  archives and the Windows MSIs. SHA256SUMS.txt lists every package of this version.
   Refuses to replace a release folder that holds settings or history written by running the portable build there,
   unless -DiscardUserData is given. User data is never packaged.
 #>
@@ -27,10 +30,21 @@ param(
     [string] $Configuration = 'Release',
     [string] $Root = (Join-Path $PSScriptRoot '..' 'artifacts'),
     [ValidateSet('Both', 'Portable', 'Normal')] [string] $Flavor = 'Both',
+    [ValidateSet('Packages', 'InstallerMSI', 'All')] [string] $Format = 'Packages',
     [switch] $DiscardUserData
 )
 $ErrorActionPreference = 'Stop'
-if ($All) { $Runtimes = @('win-x64', 'win-arm64', 'linux-x64', 'linux-arm64', 'osx-x64', 'osx-arm64') }
+if ($All) {
+    $Runtimes = @('win-x64', 'win-arm64', 'linux-x64', 'linux-arm64', 'osx-x64', 'osx-arm64')
+    if (-not $PSBoundParameters.ContainsKey('Format')) { $Format = 'All' }
+}
+$buildMsi = $Format -ne 'Packages'
+$buildArchives = $Format -ne 'InstallerMSI'
+if (-not $buildArchives) {
+    $Flavor = 'Normal' # the MSI installs the framework-dependent build
+    $Runtimes = @($Runtimes | Where-Object { $_ -like 'win-*' })
+    if ($Runtimes.Count -eq 0) { throw 'InstallerMSI needs a Windows runtime (win-x64 or win-arm64).' }
+}
 $repo = Resolve-Path (Join-Path $PSScriptRoot '..')
 $version = ([xml](Get-Content (Join-Path $repo 'Directory.Build.props'))).Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1
 $releaseRoot = Join-Path $Root 'release'
@@ -77,6 +91,33 @@ function Write-TarGz([string] $sourceDir, [string] $prefix, [string] $archive, [
     finally { $fs.Dispose() }
 }
 
+# MSI from the framework-dependent publish output (D-105). Windows Installer versions are major.minor.build (<256.<256.<65536):
+# a prerelease suffix is dropped, so 1.2.3-beta and 1.2.3 map to the same MSI version.
+function Build-Msi([string] $rid, [string] $payload) {
+    $msiVersion = ($version -split '[-+]')[0]
+    $parts = @($msiVersion.Split('.') | ForEach-Object { [int]$_ })
+    if ($parts.Count -ne 3 -or $parts[0] -gt 255 -or $parts[1] -gt 255 -or $parts[2] -gt 65535) { throw "version $version cannot be a Windows Installer version" }
+    $platform = $rid.Substring(4) # x64 / arm64
+    $name = "IPMaster-$version-$rid-setup-framework-dependent"
+    $out = Join-Path $Root 'obj' 'msi' $rid
+    dotnet build (Join-Path $repo 'scripts/installer/msi/IPMaster.Installer.wixproj') -c Release -p:ProductVersion=$msiVersion -p:InstallerPlatform=$platform `
+        "-p:PayloadDir=$payload" "-p:OutputName=$name" "-p:OutputPath=$out\" "-p:IntermediateOutputPath=$(Join-Path $out 'obj')\"
+    if ($LASTEXITCODE -ne 0) { throw "MSI build failed ($rid)" }
+    $msi = Join-Path $packages "$name.msi"
+    Copy-Item (Join-Path $out "$name.msi") $msi -Force
+    # read the package back: its ProductVersion must be the one asked for
+    $wi = New-Object -ComObject WindowsInstaller.Installer
+    $db = $wi.OpenDatabase((Resolve-Path $msi).Path, 0)
+    $view = $db.OpenView("SELECT Value FROM Property WHERE Property='ProductVersion'")
+    $view.Execute()
+    $actual = $view.Fetch().StringData(1)
+    $view.Close()
+    [void][System.Runtime.InteropServices.Marshal]::ReleaseComObject($view)
+    [void][System.Runtime.InteropServices.Marshal]::ReleaseComObject($db)
+    if ($actual -ne $msiVersion) { throw "MSI ProductVersion is $actual, expected $msiVersion" }
+    Write-Host "MSI:      $((Resolve-Path $msi).Path) ($([math]::Round((Get-Item $msi).Length / 1MB, 1)) MB, version $actual)"
+}
+
 $hostRid = [System.Runtime.InteropServices.RuntimeInformation]::RuntimeIdentifier -replace '^(win|linux|osx)[^-]*-', '$1-'
 $flavours = @(
     @{ Suffix = '-portable'; SelfContained = $true }
@@ -117,7 +158,9 @@ foreach ($fl in $flavours) {
 
     if ($rid -like 'win-*') {
         Copy-Item (Join-Path $repo 'README.md') $dest
-        $zip = Join-Path $packages "IPMaster-$version-$rid$suffix.zip"
+        if ($buildMsi -and -not $fl.SelfContained) { Build-Msi $rid $dest }
+        if (-not $buildArchives) { continue }
+        $zip =Join-Path $packages "IPMaster-$version-$rid$suffix.zip"
         if (Test-Path $zip) { Remove-Item $zip }
         Compress-Archive -Path (Join-Path $dest '*') -DestinationPath $zip
         Write-Host "Release:  $((Resolve-Path $exePath).Path)"
@@ -158,4 +201,12 @@ foreach ($fl in $flavours) {
     Write-Host "Release:  $((Resolve-Path $exePath).Path)"
     Write-Host "Package:  $((Resolve-Path $archive).Path)"
 }
+}
+
+# checksums of every package of this version (archives and MSIs), for the release page
+$sums = @(Get-ChildItem $packages -File | Where-Object { $_.Name -like "IPMaster-$version-*" -and $_.Extension -in '.zip', '.gz', '.msi' } | Sort-Object Name)
+if ($sums.Count -gt 0) {
+    $sums | ForEach-Object { "$((Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant())  $($_.Name)" } |
+        Set-Content -Encoding utf8NoBOM (Join-Path $packages 'SHA256SUMS.txt')
+    Write-Host "Checksums: $((Resolve-Path (Join-Path $packages 'SHA256SUMS.txt')).Path)"
 }

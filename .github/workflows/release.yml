@@ -1,0 +1,45 @@
+# Release packages (D-105). Runs only for a pushed version tag (vX.Y.Z) that matches Directory.Build.props, never for an
+# ordinary commit. It creates a DRAFT release: a maintainer reviews the assets and publishes it by hand.
+name: Release
+
+on:
+  push:
+    tags: ['v[0-9]+.[0-9]+.[0-9]+']
+
+permissions:
+  contents: write
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  release:
+    name: Draft release
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - name: Check the tag matches the version
+        shell: pwsh
+        run: |
+          $v = ([xml](Get-Content Directory.Build.props)).Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1
+          if ("v$v" -ne $env:GITHUB_REF_NAME) { throw "tag $env:GITHUB_REF_NAME does not match the project version $v" }
+      - run: dotnet build IPMaster.slnx -c Release
+      - run: dotnet tests/IPMaster.Tests/bin/Release/net10.0/IPMaster.Tests.dll -longRunning 60
+        timeout-minutes: 15
+      # every RID, portable and normal archives, the Windows MSIs and SHA256SUMS.txt
+      - name: Build the packages
+        shell: pwsh
+        run: ./scripts/publish.ps1 -All -Root artifacts/release-ci
+      - name: Create the draft release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $files = @(Get-ChildItem artifacts/release-ci/packages -File | ForEach-Object FullName)
+          if (-not ($files | Where-Object { $_ -like '*-win-x64-setup-framework-dependent.msi' })) { throw 'the x64 MSI is missing' }
+          gh release create $env:GITHUB_REF_NAME @files --draft --verify-tag --title "IPMaster $($env:GITHUB_REF_NAME.TrimStart('v'))" --generate-notes

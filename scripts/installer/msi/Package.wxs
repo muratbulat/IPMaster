@@ -1,0 +1,53 @@
+<!--
+  IPMaster MSI (D-105): per-machine, framework-dependent IPMaster.exe in Program Files, Start Menu shortcut, optional
+  desktop shortcut (DESKTOPSHORTCUT=1), major upgrades (stable UpgradeCode, new ProductCode per build), repair, clean
+  uninstall. User data lives in %APPDATA%\IPMaster and is never installed, changed or removed by this package.
+-->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs" xmlns:netfx="http://wixtoolset.org/schemas/v4/wxs/netfx">
+  <Package Name="IPMaster" Manufacturer="Murat Bulat" Version="$(var.ProductVersion)" UpgradeCode="E12D6F0A-B3D1-451F-873B-E44EFAD1FE0B"
+           Scope="perMachine" Compressed="yes" Language="1033">
+    <SummaryInformation Description="IPMaster network scanner" />
+    <!-- the old version is removed after the new one is validated; same-version rebuilds replace each other instead of adding a second entry -->
+    <MajorUpgrade AllowSameVersionUpgrades="yes" DowngradeErrorMessage="A newer version of IPMaster is already installed. Uninstall it first to install this version." />
+    <MediaTemplate EmbedCab="yes" />
+
+    <Icon Id="IPMaster.ico" SourceFile="$(var.RepoDir)\src\IPMaster.Desktop\Assets\ipmaster.ico" />
+    <Property Id="ARPPRODUCTICON" Value="IPMaster.ico" />
+    <Property Id="ARPURLINFOABOUT" Value="https://github.com/muratbulat/ipmaster" />
+    <Property Id="ARPNOMODIFY" Value="1" />
+    <!-- DESKTOPSHORTCUT=1 adds a desktop shortcut; the choice is read back on upgrade and repair (stored with the shortcut component) -->
+    <Property Id="DESKTOPSHORTCUT" Secure="yes">
+      <RegistrySearch Id="RememberDesktopShortcut" Root="HKCU" Key="Software\IPMaster\Installer" Name="DesktopShortcut" Type="raw" />
+    </Property>
+
+    <!-- The app is framework-dependent: the .NET runtime is checked, never downloaded or installed. -->
+    <netfx:DotNetCompatibilityCheck Property="DOTNETRUNTIMECHECK" RuntimeType="core" Platform="$(sys.BUILDARCH)" Version="$(var.DotNetVersion)" RollForward="minor" />
+    <Launch Condition="Installed OR DOTNETRUNTIMECHECK=&quot;0&quot;"
+            Message="IPMaster needs the .NET 10 Runtime ($(sys.BUILDARCH)). Install it from https://dotnet.microsoft.com/download/dotnet/10.0 and run this installer again." />
+
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLFOLDER" Name="IPMaster" />
+    </StandardDirectory>
+
+    <Feature Id="Main" Title="IPMaster">
+      <Component Directory="INSTALLFOLDER">
+        <File Id="IPMasterExe" Source="$(var.PayloadDir)\IPMaster.exe" KeyPath="yes" />
+      </Component>
+      <Component Directory="INSTALLFOLDER">
+        <File Source="$(var.PayloadDir)\README.md" KeyPath="yes" />
+      </Component>
+      <Component Directory="INSTALLFOLDER">
+        <File Source="ipmaster.installed" KeyPath="yes" />
+      </Component>
+      <!-- shortcut components use an HKCU key path (WiX "create a shortcut" pattern; ICE38/ICE43); it holds only a marker value -->
+      <Component Id="StartMenuShortcut" Directory="ProgramMenuFolder">
+        <Shortcut Id="StartMenu" Name="IPMaster" Description="Network scanner" Target="[INSTALLFOLDER]IPMaster.exe" WorkingDirectory="INSTALLFOLDER" Icon="IPMaster.ico" />
+        <RegistryValue Root="HKCU" Key="Software\IPMaster\Installer" Name="StartMenuShortcut" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+      <Component Id="DesktopShortcut" Directory="DesktopFolder" Condition="DESKTOPSHORTCUT=1">
+        <Shortcut Id="Desktop" Name="IPMaster" Description="Network scanner" Target="[INSTALLFOLDER]IPMaster.exe" WorkingDirectory="INSTALLFOLDER" Icon="IPMaster.ico" />
+        <RegistryValue Root="HKCU" Key="Software\IPMaster\Installer" Name="DesktopShortcut" Type="string" Value="1" KeyPath="yes" />
+      </Component>
+    </Feature>
+  </Package>
+</Wix>

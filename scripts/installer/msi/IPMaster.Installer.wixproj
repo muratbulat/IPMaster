@@ -1,0 +1,18 @@
+<Project Sdk="WixToolset.Sdk/5.0.2">
+  <!-- Built by scripts/publish.ps1 -Format InstallerMSI (D-105). Not part of IPMaster.slnx (Windows-only tool chain). -->
+  <PropertyGroup>
+    <OutputType>Package</OutputType>
+    <ProductVersion Condition="'$(ProductVersion)' == ''">0.0.0</ProductVersion>
+    <InstallerPlatform Condition="'$(InstallerPlatform)' == ''">x64</InstallerPlatform>
+    <!-- framework-dependent publish output: IPMaster.exe and README.md -->
+    <PayloadDir Condition="'$(PayloadDir)' == ''">$(MSBuildThisFileDirectory)..\..\..\artifacts\release\win-$(InstallerPlatform)</PayloadDir>
+    <DotNetVersion Condition="'$(DotNetVersion)' == ''">10.0.0</DotNetVersion>
+    <DefineConstants>ProductVersion=$(ProductVersion);PayloadDir=$(PayloadDir);DotNetVersion=$(DotNetVersion);RepoDir=$(MSBuildThisFileDirectory)..\..\..</DefineConstants>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <!-- ICE61 flags AllowSameVersionUpgrades, which is intended: a rebuild of the same version replaces the installed one -->
+    <SuppressIces>ICE61</SuppressIces>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="WixToolset.Netfx.wixext" />
+  </ItemGroup>
+</Project>

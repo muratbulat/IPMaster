@@ -21,5 +21,7 @@
     <PackageVersion Include="System.DirectoryServices.Protocols" Version="10.0.15" />
     <PackageVersion Include="MailKit" Version="4.18.2" />
     <PackageVersion Include="xunit.v3" Version="4.0.3" />
+    <!-- MSI installer only (scripts/installer/msi, D-105); WiX v5 = MS-RL, the SDK version is pinned in IPMaster.Installer.wixproj -->
+    <PackageVersion Include="WixToolset.Netfx.wixext" Version="5.0.2" />
   </ItemGroup>
 </Project>
