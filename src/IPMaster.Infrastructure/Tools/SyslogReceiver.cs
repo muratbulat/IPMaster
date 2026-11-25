@@ -188,10 +188,11 @@ public sealed class SyslogReceiver : IAsyncDisposable
     private async Task ConnectionAsync(TcpClient client)
     {
         var decoder = new SyslogStreamDecoder(_o.MaxMessageBytes);
-        var from = client.Client.RemoteEndPoint;
         var buffer = new byte[16 * 1024];
         try
         {
+            // inside the try: shutdown can dispose the client before this task starts (Client is then null)
+            var from = client.Client?.RemoteEndPoint ?? throw new ObjectDisposedException(nameof(TcpClient));
             var stream = client.GetStream();
             while (!_cts.IsCancellationRequested)
             {
