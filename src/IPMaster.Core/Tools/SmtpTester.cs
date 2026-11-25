@@ -94,6 +94,9 @@ public sealed record ToolSettings
     public IReadOnlyList<SmtpProfile> SmtpProfiles { get; set; } = [];
 
     public IReadOnlyList<KmsProfile> KmsProfiles { get; set; } = [];
+
+    /// <summary>iPerf executable chosen by the user (Tools → iPerf Network Performance); empty = search PATH.</summary>
+    public string IperfExecutable { get; set; } = "";
 }
 
 public enum SmtpOperation

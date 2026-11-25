@@ -10,7 +10,7 @@ provides a desktop application and a command line.
 - Discovery: DHCP servers, UPnP, mDNS, WSD, ONVIF, duplicate IP addresses, Wake-on-LAN.
 - Continuous operations: live monitoring (latency, loss, jitter), background scanning, device history and notifications.
 - Network tools: DNS diagnostics and bulk audit, TCP, TLS, HTTP/API, LDAP, NTP, SMTP, syslog receiver, SNMP tester and
-  interface monitor, LLDP/CDP topology, path and MTU analysis, IP calculator, download/transfer calculator, device IP
+  interface monitor, LLDP/CDP topology, path and MTU analysis, iPerf throughput tests (with an installed iperf3 or iperf2), IP calculator, download/transfer calculator, device IP
   discovery with an isolated DHCP server, a Wi-Fi analyzer (Windows) and a KMS activation manager (Windows: Windows and Office
   licence status, official KMS client setup keys, confirmed activation against your own KMS host), a WinGet update manager
   (Windows) and a read-only Group Policy viewer (Windows).

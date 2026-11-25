@@ -36,6 +36,7 @@ public partial class MainWindow
             vm.Services.GetRequiredService<IPMaster.Core.Scanning.IIcmpProbe>())),
         new("Win_Get Manager…", (_, vm) => new WinGetManagerWindow(vm.Services.GetRequiredService<IWinGetService>())),
         new("_Group Policy Viewer…", (_, vm) => new GroupPolicyViewerWindow(vm.Services.GetRequiredService<IGroupPolicyService>())),
+        new("i_Perf Network Performance…", (_, vm) => new IperfWindow(vm, vm.Services.GetRequiredService<IIperfService>(), vm.Services.GetRequiredService<IPMaster.Core.Network.INetworkAdapterProvider>())),
         new("_KMS Activation Manager…", (_, vm) => new KmsManagerWindow(vm, vm.Services.GetRequiredService<IKmsService>())),
     ]);
 
