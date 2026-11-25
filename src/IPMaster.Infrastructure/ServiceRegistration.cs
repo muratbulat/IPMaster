@@ -71,6 +71,7 @@ public static class ServiceRegistration
         services.AddSingleton(sp => new Monitoring.NotificationDispatcher(sp.GetRequiredService<Security.CredentialVault>()));
         services.AddSingleton<Tools.ISmtpTester, Tools.SmtpClientTester>();
         services.AddSingleton<Tools.IKmsService, Tools.WindowsKmsService>();
+        services.AddSingleton<Tools.IWinGetService, Tools.WinGetService>();
         services.AddSingleton<Monitoring.ContinuousOperations>();
         services.AddSingleton(sp => new Core.Monitoring.LiveMonitor(sp.GetRequiredService<IIcmpProbe>(), sp.GetRequiredService<TimeProvider>()));
         return services;

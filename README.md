@@ -12,7 +12,8 @@ provides a desktop application and a command line.
 - Network tools: DNS diagnostics and bulk audit, TCP, TLS, HTTP/API, LDAP, NTP, SMTP, syslog receiver, SNMP tester and
   interface monitor, LLDP/CDP topology, path and MTU analysis, IP calculator, download/transfer calculator, device IP
   discovery with an isolated DHCP server, a Wi-Fi analyzer (Windows) and a KMS activation manager (Windows: Windows and Office
-  licence status, official KMS client setup keys, confirmed activation against your own KMS host).
+  licence status, official KMS client setup keys, confirmed activation against your own KMS host) and a WinGet update manager
+  (Windows).
 - Exports: CSV, TXT, HTML, XML, JSON, SQLite; light and dark themes; keyboard shortcuts and a command navigator.
 
 ## Supported operating systems
