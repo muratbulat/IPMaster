@@ -38,7 +38,8 @@ internal sealed class WinGetManagerWindow : Window
 
         public string Status => State switch
         {
-            WinGetStatus.Current or WinGetStatus.Updated => "✔ ",
+            WinGetStatus.Current or WinGetStatus.Updated or WinGetStatus.Installed => "✔ ",
+            WinGetStatus.Unverified => "? ",
             WinGetStatus.UpdateAvailable => "⬆ ",
             WinGetStatus.Failed => "✖ ",
             WinGetStatus.Updating => "… ",
@@ -67,6 +68,7 @@ internal sealed class WinGetManagerWindow : Window
     private readonly ProgressBar _progress = new() { Minimum = 0, Height = 6, IsVisible = false };
     private readonly Border _unavailable;
     private readonly Button _refresh;
+    private readonly Button _install;
     private readonly Button _updateSelected;
     private readonly Button _updateAll;
     private readonly Button _cancel;
@@ -87,13 +89,15 @@ internal sealed class WinGetManagerWindow : Window
         _unavailable = Ui.Banner("", Styling.Theme.Classes.Warning, visible: false);
         _refresh = Ui.Button("Refresh", RefreshAsync);
         ToolTip.SetTip(_refresh, "Reads the installed packages and updates again (winget list).");
+        _install = Ui.Button("Install New…", InstallNewAsync);
+        ToolTip.SetTip(_install, "Searches the WinGet catalog and installs packages (winget search, winget install).");
         _filters = FilterNames.Select((t, i) => new RadioButton { Content = t, GroupName = "wingetFilter", IsChecked = i == 0 }).ToArray();
         foreach (var f in _filters) f.IsCheckedChanged += (_, _) => ApplyFilter();
         _search.TextChanged += (_, _) => ApplyFilter(); // local filter: no WinGet call per keystroke
         var inputs = new StackPanel
         {
             Spacing = Styling.Theme.SectionGap,
-            Children = { _unavailable, _summary, Ui.Row(_search, _refresh), Ui.Row(_filters) },
+            Children = { _unavailable, _summary, Ui.Row(_search, _refresh, _install), Ui.Row(_filters) },
         };
 
         _grid = new DataGrid
@@ -226,7 +230,7 @@ internal sealed class WinGetManagerWindow : Window
     {
         var ok = filter switch
         {
-            WinGet.Filter.Updates => r.State is WinGetStatus.UpdateAvailable or WinGetStatus.Updating or WinGetStatus.Failed || r.Override == WinGetStatus.Updated,
+            WinGet.Filter.Updates => r.State is WinGetStatus.UpdateAvailable or WinGetStatus.Updating or WinGetStatus.Failed or WinGetStatus.Unverified || r.Override == WinGetStatus.Updated,
             WinGet.Filter.UpToDate => r.State is WinGetStatus.Current or WinGetStatus.Updated,
             _ => true,
         };
@@ -236,6 +240,7 @@ internal sealed class WinGetManagerWindow : Window
     private void UpdateButtons()
     {
         _refresh.IsEnabled = !_busy;
+        _install.IsEnabled = !_busy;
         _updateSelected.IsEnabled = !_busy && _grid.SelectedItems.OfType<Row>().Any(r => r.State == WinGetStatus.UpdateAvailable && WinGet.IsEligible(r.P));
         _updateAll.IsEnabled = !_busy && _all.Any(r => r.State == WinGetStatus.UpdateAvailable && WinGet.IsEligible(r.P));
         _cancel.IsEnabled = _busy && _cts is not null;
@@ -284,6 +289,7 @@ internal sealed class WinGetManagerWindow : Window
                 _status.Text = "Starting the update…";
                 Log($"--- {row.Id} ({row.Source}) {row.Installed} → {row.Available}");
                 int? code;
+                WinGetPackage? after = null;
                 try
                 {
                     code = await Task.Run(() => _service.UpgradeAsync(row.P, accept, line => Dispatcher.UIThread.Post(() =>
@@ -306,18 +312,19 @@ internal sealed class WinGetManagerWindow : Window
                 WinGetUpdateResult result;
                 if (code is null)
                 {
-                    result = new(row.Id, row.Name, row.Installed, null, WinGetStatus.Unknown, 0, "Still running after 60 minutes. Verification unavailable.", false);
+                    result = new(row.Id, row.Name, row.Installed, null, WinGetStatus.Unverified, 0, "Still running after 60 minutes. Refresh later to check.", false);
                 }
                 else
                 {
                     _status.Text = "Verifying…";
-                    var after = await Task.Run(() => _service.ReadBackAsync(row.P, CancellationToken.None));
+                    after = await Task.Run(() => _service.ReadBackAsync(row.P, CancellationToken.None));
                     result = WinGet.Verify(row.P, code.Value, after);
                 }
 
                 results.Add(result);
                 var msg = result.Status == WinGetStatus.Updated ? $"{result.FromVersion} → {result.ToVersion}. {result.Message}" : result.Message;
-                Replace(Current(row), row with { Override = result.Status, Note = msg });
+                // the Installed column shows what WinGet reads back; pins cannot change during an update of an unpinned package
+                Replace(Current(row), row with { P = after is null ? row.P : after with { IsPinned = row.P.IsPinned }, Override = result.Status, Note = msg });
                 Log($"{row.Id}: {msg} (exit {WinGet.Hex(result.ExitCode)})");
                 _progress.Value = i + 1;
             }
@@ -349,30 +356,43 @@ internal sealed class WinGetManagerWindow : Window
         if (j >= 0) _rows[j] = now;
     }
 
-    private void Log(string line)
+    private async Task InstallNewAsync()
+    {
+        if (_busy) return;
+        var installed = _all.GroupBy(r => r.Id, StringComparer.OrdinalIgnoreCase).ToDictionary(g => g.Key, g => g.First().Installed, StringComparer.OrdinalIgnoreCase);
+        var w = new WinGetInstallWindow(_service, installed, Log);
+        await w.ShowDialog(this);
+        if (w.InstalledAny) await RefreshAsync();
+    }
+
+    internal void Log(string line)
     {
         if (_log.Length > 2_000_000) _log.Remove(0, 500_000); // bounded
         _log.Append(DateTime.Now.ToString("HH:mm:ss ", System.Globalization.CultureInfo.InvariantCulture)).AppendLine(line);
     }
 
+    private Task<bool?> ConfirmAsync(IReadOnlyList<Row> targets, IReadOnlyList<Row> excluded) => ConfirmAsync(
+        this, "Update Packages", $"Update {targets.Count} package(s)?", targets.Select(r => $"{r.Name}  {r.Installed} → {r.Available}").ToList(),
+        excluded.Count > 0 ? $"Excluded: {excluded.Count} (pinned, unknown version or no confirmed update)." : null, "Update");
+
     /// <summary>Returns whether to accept package/source agreements, or null when cancelled.</summary>
-    private async Task<bool?> ConfirmAsync(IReadOnlyList<Row> targets, IReadOnlyList<Row> excluded)
+    internal static async Task<bool?> ConfirmAsync(Window owner, string title, string question, IReadOnlyList<string> lines, string? excludedText, string okText)
     {
-        var d = Ui.Window("Update Packages", 560, 420);
+        var d = Ui.Window(title, 560, 420);
         d.Height = double.NaN;
         d.MinHeight = 0;
         d.SizeToContent = SizeToContent.Height;
-        var names = string.Join("\n", targets.Take(15).Select(r => $"{r.Name}  {r.Installed} → {r.Available}")) + (targets.Count > 15 ? $"\n… and {targets.Count - 15} more" : "");
+        var names = string.Join("\n", lines.Take(15)) + (lines.Count > 15 ? $"\n… and {lines.Count - 15} more" : "");
         var panel = new StackPanel { Spacing = Styling.Theme.SectionGap };
-        panel.Children.Add(new TextBlock { Text = $"Update {targets.Count} package(s)?", Classes = { Styling.Theme.Classes.Section } });
+        panel.Children.Add(new TextBlock { Text = question, Classes = { Styling.Theme.Classes.Section } });
         panel.Children.Add(new ScrollViewer { Content = new SelectableTextBlock { Text = names, Classes = { Styling.Theme.Classes.Mono } }, MaxHeight = 220 });
-        if (excluded.Count > 0) panel.Children.Add(new TextBlock { Text = $"Excluded: {excluded.Count} (pinned, unknown version or no confirmed update).", TextWrapping = TextWrapping.Wrap });
-        panel.Children.Add(Ui.Banner("Applications may close or restart. Some installers ask for administrator approval or other input. Updates run one at a time.", Styling.Theme.Classes.Warning));
+        if (excludedText is not null) panel.Children.Add(new TextBlock { Text = excludedText, TextWrapping = TextWrapping.Wrap });
+        panel.Children.Add(Ui.Banner("Applications may close or restart. Some installers ask for administrator approval or other input. Packages are processed one at a time.", Styling.Theme.Classes.Warning));
         var accept = new CheckBox { Content = "Accept the package and source agreements of these packages" };
         ToolTip.SetTip(accept, "Off: a package that needs an agreement fails with \"agreement not accepted\".");
         panel.Children.Add(accept);
         bool? result = null;
-        var ok = Ui.Button("Update", () =>
+        var ok = Ui.Button(okText, () =>
         {
             result = accept.IsChecked == true;
             d.Close();
@@ -387,7 +407,7 @@ internal sealed class WinGetManagerWindow : Window
         panel.Children.Add(Ui.Row(cancel, ok));
         d.Content = new ScrollViewer { Content = panel, Padding = Styling.Theme.Page };
         d.Opened += (_, _) => cancel.Focus();
-        await d.ShowDialog(this);
+        await d.ShowDialog(owner);
         return result;
     }
 

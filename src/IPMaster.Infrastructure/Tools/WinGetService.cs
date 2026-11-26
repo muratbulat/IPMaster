@@ -10,7 +10,9 @@ public sealed record WinGetInfo(bool Available, string Version, string Message);
 
 public sealed record WinGetInventory(IReadOnlyList<WinGetPackage> Packages, string Error);
 
-/// <summary>Tools → WinGet Manager (D-106). Listing is read-only; <see cref="UpgradeAsync"/> is the only changing call.</summary>
+public sealed record WinGetSearchResult(IReadOnlyList<WinGetSearchHit> Hits, string Error);
+
+/// <summary>Tools → WinGet Manager (D-106, D-109). Listing and search are read-only; <see cref="UpgradeAsync"/> and <see cref="InstallAsync"/> change the system.</summary>
 public interface IWinGetService
 {
     bool IsSupported { get; }
@@ -24,6 +26,12 @@ public interface IWinGetService
     /// never killed. Returns the exit code, or null when waiting stopped after <see cref="WinGetService.UpgradeTimeout"/>.
     /// </summary>
     Task<int?> UpgradeAsync(WinGetPackage package, bool acceptAgreements, Action<string> progress, CancellationToken ct);
+
+    /// <summary>Installs one search hit by exact id and source; same rules as <see cref="UpgradeAsync"/>.</summary>
+    Task<int?> InstallAsync(WinGetSearchHit hit, bool acceptAgreements, Action<string> progress, CancellationToken ct);
+
+    /// <summary>Catalog search (<c>winget search</c>), at most <see cref="WinGet.SearchLimit"/> hits.</summary>
+    Task<WinGetSearchResult> SearchAsync(string query, CancellationToken ct);
 
     /// <summary>The package as WinGet reports it now (exact id and source), or null.</summary>
     Task<WinGetPackage?> ReadBackAsync(WinGetPackage package, CancellationToken ct);
@@ -78,8 +86,11 @@ public sealed class WinGetService : IWinGetService
     {
         try
         {
-            var r = await RunAsync(["list", "--id", package.Id, "--exact", "--source", package.Source, "--disable-interactivity"], ListTimeout, ct).ConfigureAwait(false);
-            return r.ExitCode == 0 ? WinGet.ParseList(r.Output).FirstOrDefault(p => string.Equals(p.Id, package.Id, StringComparison.OrdinalIgnoreCase)) : null;
+            // no --source: with it WinGet drops the Source column and the table no longer parses; the source is matched below
+            var r = await RunAsync(["list", "--id", package.Id, "--exact", "--disable-interactivity"], ListTimeout, ct).ConfigureAwait(false);
+            return r.ExitCode == 0
+                ? WinGet.ParseList(r.Output).FirstOrDefault(p => string.Equals(p.Id, package.Id, StringComparison.OrdinalIgnoreCase) && string.Equals(p.Source, package.Source, StringComparison.OrdinalIgnoreCase))
+                : null;
         }
         catch (Exception ex) when (ex is InvalidOperationException or TimeoutException)
         {
@@ -87,11 +98,45 @@ public sealed class WinGetService : IWinGetService
         }
     }
 
-    public async Task<int?> UpgradeAsync(WinGetPackage package, bool acceptAgreements, Action<string> progress, CancellationToken ct)
+    public async Task<WinGetSearchResult> SearchAsync(string query, CancellationToken ct)
+    {
+        if (query.Trim().Length == 0) return new([], "Enter a name, id, moniker or tag.");
+        try
+        {
+            var r = await RunAsync(WinGet.SearchArguments(query), ListTimeout, ct).ConfigureAwait(false);
+            if (unchecked((uint)r.ExitCode) == 0x8A150014) return new([], "No package found.");
+            if (r.ExitCode != 0) return new([], WinGet.ExitText(r.ExitCode).Replace("Update failed", "Search failed", StringComparison.Ordinal) + " " + LastLine(r.Output));
+            var hits = WinGet.ParseSearch(r.Output);
+            return hits.Count == 0 && r.Output.Trim().Length > 0 ? new([], "The WinGet output could not be read.") : new(hits, "");
+        }
+        catch (InvalidOperationException ex)
+        {
+            return new([], "WinGet is unavailable. " + ex.Message);
+        }
+        catch (TimeoutException)
+        {
+            return new([], "WinGet did not answer in time.");
+        }
+    }
+
+    public Task<int?> UpgradeAsync(WinGetPackage package, bool acceptAgreements, Action<string> progress, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
         if (!WinGet.IsEligible(package)) throw new InvalidOperationException("The package has no confirmed update.");
-        var psi = Start(WinGet.UpgradeArguments(package, acceptAgreements));
+        return RunInstallerAsync(WinGet.UpgradeArguments(package, acceptAgreements), progress);
+    }
+
+    public Task<int?> InstallAsync(WinGetSearchHit hit, bool acceptAgreements, Action<string> progress, CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        if (!WinGet.IsInstallable(hit)) throw new InvalidOperationException("The package has no source to install from.");
+        return RunInstallerAsync(WinGet.InstallArguments(hit, acceptAgreements), progress);
+    }
+
+    /// <summary>Runs an installing command to the end (never killed); null when waiting stopped after <see cref="UpgradeTimeout"/>.</summary>
+    private static async Task<int?> RunInstallerAsync(IReadOnlyList<string> args, Action<string> progress)
+    {
+        var psi = Start(args);
         using var p = new Process { StartInfo = psi };
         try
         {

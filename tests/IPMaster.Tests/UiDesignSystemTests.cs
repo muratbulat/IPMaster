@@ -210,6 +210,7 @@ public class UiDesignSystemTests
         ["WMI Query Manager"] = () => new QueryManagerWindow(HeadlessUi.Vm, IPMaster.Core.Queries.QueryKind.Wmi),
         ["SNMP Query Manager"] = () => new QueryManagerWindow(HeadlessUi.Vm, IPMaster.Core.Queries.QueryKind.Snmp),
         ["Script Query Manager"] = () => new QueryManagerWindow(HeadlessUi.Vm, IPMaster.Core.Queries.QueryKind.Script),
+        ["WinGet Install Packages"] = () => new WinGetInstallWindow(new FakeWinGet(), new Dictionary<string, string>(), _ => { }),
     };
 
     public static TheoryData<string> OtherWindowNames() => [.. OtherWindows.Keys];

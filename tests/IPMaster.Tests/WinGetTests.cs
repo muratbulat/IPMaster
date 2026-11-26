@@ -139,8 +139,12 @@ public class WinGetParserTests
         Assert.Equal(WinGetStatus.Updated, WinGet.Verify(before, 0, updated).Status);
         Assert.Equal("2.49", WinGet.Verify(before, 0, updated).ToVersion);
         Assert.Equal(WinGetStatus.Failed, WinGet.Verify(before, 0, before).Status); // exit 0, but still offered: not a success
-        Assert.Equal(WinGetStatus.Unknown, WinGet.Verify(before, 0, null).Status); // "Completed. Verification unavailable."
-        Assert.Equal("Completed. Verification unavailable.", WinGet.Verify(before, 0, null).Message);
+        Assert.Equal(WinGetStatus.Unverified, WinGet.Verify(before, 0, null).Status);
+        Assert.Contains("could not be read back", WinGet.Verify(before, 0, null).Message, StringComparison.Ordinal);
+        var same = WinGet.Verify(before, 0, before with { AvailableVersion = "" }); // exit 0, nothing offered, version unchanged
+        Assert.Equal((WinGetStatus.Unverified, "Completed, but the installed version is still 2.48."), (same.Status, same.Message));
+        Assert.Equal(WinGetStatus.Updated, WinGet.Verify(before, 0, before with { InstalledVersion = "2.50", AvailableVersion = "" }).Status); // newer than offered (gh 2.105 -> 2.106)
+        Assert.Contains("Administrator", WinGet.ExitText(unchecked((int)0x80073D28)), StringComparison.Ordinal); // MSIX needs admin
         var failed = WinGet.Verify(before, unchecked((int)0x8A150011), before);
         Assert.Equal(WinGetStatus.Failed, failed.Status);
         Assert.Contains("hash", failed.Message, StringComparison.Ordinal);
@@ -152,12 +156,70 @@ public class WinGetParserTests
     }
 
     [Fact]
+    public void Search_tables_with_and_without_source_or_match()
+    {
+        // shapes of winget 1.29 output: all sources (Match + Source), one source (Match only), exact id (Source only)
+        const string all = """
+            Name                               Id                        Version       Match         Source
+            -----------------------------------------------------------------------------------------------
+            7-Zip                              7zip.7zip                 26.06         Moniker: 7zip winget
+            NanaZip                            M2Team.NanaZip            7.0.1882.0    Tag: 7zip     winget
+            Truncated                          Some.Very.Long.Id…        1.0           Tag: 7zip     winget
+            """;
+        var h = WinGet.ParseSearch(all);
+        Assert.Equal(2, h.Count);
+        Assert.Equal(new WinGetSearchHit("7-Zip", "7zip.7zip", "26.06", "Moniker: 7zip", "winget"), h[0]);
+        Assert.True(WinGet.IsInstallable(h[0]));
+        const string oneSource = """
+            Name    Id             Version    Match
+            ---------------------------------------------
+            7-Zip   7zip.7zip      26.06      Moniker: 7zip
+            NanaZip M2Team.NanaZip 7.0.1882.0 Tag: 7zip
+            """;
+        var o = WinGet.ParseSearch(oneSource);
+        Assert.Equal(("Moniker: 7zip", ""), (o[0].Match, o[0].Source));
+        Assert.False(WinGet.IsInstallable(o[0])); // no source: not installed by guess
+        const string exact = """
+            Name  Id        Version Source
+            -------------------------------
+            7-Zip 7zip.7zip 26.06   winget
+            """;
+        Assert.Equal(new WinGetSearchHit("7-Zip", "7zip.7zip", "26.06", "", "winget"), Assert.Single(WinGet.ParseSearch(exact)));
+        Assert.Empty(WinGet.ParseSearch("No package found matching input criteria."));
+    }
+
+    [Fact]
+    public void Read_back_table_without_a_source_column_is_not_a_package()
+    {
+        // 'winget list --id X --exact --source winget' omits Source: the cause of "Verification unavailable" (read back now runs without --source)
+        Assert.Empty(WinGet.ParseList("Name Id      Version\n--------------------\nGit  Git.Git 2.56.1\n"));
+        Assert.Equal("winget", Assert.Single(WinGet.ParseList("Name Id      Version Source\n----------------------------\nGit  Git.Git 2.56.1  winget\n")).Source);
+    }
+
+    [Fact]
+    public void Install_arguments_are_exact_and_verified_by_listing()
+    {
+        var hit = new WinGetSearchHit("7-Zip", "7zip.7zip", "26.06", "", "winget");
+        Assert.Equal(["install", "--id", "7zip.7zip", "--exact", "--source", "winget", "--disable-interactivity"], WinGet.InstallArguments(hit, false));
+        Assert.Contains("--accept-source-agreements", WinGet.InstallArguments(hit, true));
+        Assert.Equal(["search", "--query", "7zip", "--count", "100", "--disable-interactivity"], WinGet.SearchArguments(" 7zip "));
+        var listed = new WinGetPackage { Id = "7zip.7zip", Source = "winget", InstalledVersion = "26.06" };
+        Assert.Equal((WinGetStatus.Installed, "26.06"), (WinGet.VerifyInstall(hit, 0, listed).Status, WinGet.VerifyInstall(hit, 0, listed).ToVersion));
+        Assert.Equal(WinGetStatus.Unverified, WinGet.VerifyInstall(hit, 0, null).Status);
+        var failed = WinGet.VerifyInstall(hit, unchecked((int)0x8A150041), null);
+        Assert.Equal(WinGetStatus.Failed, failed.Status);
+        Assert.Contains("agreement", failed.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task Service_refuses_packages_without_a_confirmed_update()
     {
         var current = new WinGetPackage { Id = "Contoso.Tool", Source = "winget", InstalledVersion = "1.0" };
         await Assert.ThrowsAsync<InvalidOperationException>(() => new WinGetService().UpgradeAsync(current, false, _ => { }, TestContext.Current.CancellationToken));
         var pinned = current with { AvailableVersion = "2.0", IsPinned = true };
         await Assert.ThrowsAsync<InvalidOperationException>(() => new WinGetService().UpgradeAsync(pinned, false, _ => { }, TestContext.Current.CancellationToken));
+        var noSource = new WinGetSearchHit("A", "A.B", "1.0", "Tag: a", "");
+        await Assert.ThrowsAsync<InvalidOperationException>(() => new WinGetService().InstallAsync(noSource, false, _ => { }, TestContext.Current.CancellationToken));
     }
 }
 
@@ -186,8 +248,28 @@ internal sealed class FakeWinGet : IWinGetService
         return Task.FromResult<int?>(ExitCodes.GetValueOrDefault(package.Id));
     }
 
-    public Task<WinGetPackage?> ReadBackAsync(WinGetPackage package, CancellationToken ct) => Task.FromResult<WinGetPackage?>(
-        ExitCodes.GetValueOrDefault(package.Id) == 0 ? package with { InstalledVersion = package.AvailableVersion, AvailableVersion = "" } : package);
+    public readonly List<string> Installed = [];
+
+    public IReadOnlyList<WinGetSearchHit> Hits { get; set; } =
+        [new("7-Zip", "7zip.7zip", "26.06", "Moniker: 7zip", "winget"), new("Contoso Tool", "Contoso.Tool", "1.2.0", "", "winget"), new("NanaZip", "M2Team.NanaZip", "7.0", "Tag: 7zip", "winget")];
+
+    public Task<WinGetSearchResult> SearchAsync(string query, CancellationToken ct) => Task.FromResult(new WinGetSearchResult(Hits, ""));
+
+    public Task<int?> InstallAsync(WinGetSearchHit hit, bool acceptAgreements, Action<string> progress, CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        Installed.Add(hit.Id);
+        progress("Starting package install...");
+        return Task.FromResult<int?>(ExitCodes.GetValueOrDefault(hit.Id));
+    }
+
+    public Task<WinGetPackage?> ReadBackAsync(WinGetPackage package, CancellationToken ct)
+    {
+        var ok = ExitCodes.GetValueOrDefault(package.Id) == 0;
+        var hit = Hits.FirstOrDefault(h => h.Id == package.Id);
+        if (Installed.Contains(package.Id) && hit is not null) return Task.FromResult(ok ? package with { InstalledVersion = hit.Version } : null);
+        return Task.FromResult<WinGetPackage?>(ok ? package with { InstalledVersion = package.AvailableVersion, AvailableVersion = "" } : package);
+    }
 }
 
 [Collection("Headless UI")]
@@ -271,6 +353,7 @@ public class WinGetWindowTests
             Assert.Equal(WinGetStatus.Updated, states["A.One"]);
             Assert.Equal(WinGetStatus.Failed, states["B.Two"]); // one failure does not mark the batch successful
             Assert.Equal(WinGetStatus.Updated, states["C.Three"]);
+            Assert.Equal("2.0", w.AllRows.Single(r => r.Id == "A.One").Installed); // the version read back, not the old one
             Assert.Contains("1 failed", Describe(w), StringComparison.Ordinal);
             Assert.Contains("0x8A150011", w.LogText, StringComparison.Ordinal);
         }
@@ -297,6 +380,36 @@ public class WinGetWindowTests
             Assert.Equal(WinGetStatus.Updated, w.AllRows.Single(r => r.Id == "A.One").State);
             Assert.Equal(WinGetStatus.UpdateAvailable, w.AllRows.Single(r => r.Id == "B.Two").State);
             Assert.Contains("not started (cancelled)", Describe(w), StringComparison.Ordinal);
+        }
+        finally
+        {
+            w.Close();
+        }
+    });
+
+    [Fact]
+    public Task Search_marks_installed_and_installs_only_new_packages() => HeadlessUi.RunAsync(async () =>
+    {
+        var fake = new FakeWinGet();
+        fake.ExitCodes["M2Team.NanaZip"] = unchecked((int)0x80073D28);
+        var log = new List<string>();
+        var w = new WinGetInstallWindow(fake, new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) { ["Contoso.Tool"] = "1.2.0" }, log.Add);
+        w.Show();
+        try
+        {
+            await w.SearchAsync();
+            UiDesignSystemTests.Dispatch();
+            Assert.Equal(3, w.Rows.Count);
+            Assert.Equal(WinGetStatus.Installed, w.Rows.Single(r => r.Id == "Contoso.Tool").Shown);
+            Assert.False(w.Rows.Single(r => r.Id == "Contoso.Tool").CanInstall); // already installed: not reinstalled
+            await w.RunInstallsAsync(w.Rows.Where(r => r.CanInstall).ToList(), accept: false);
+            UiDesignSystemTests.Dispatch();
+            Assert.Equal(["7zip.7zip", "M2Team.NanaZip"], fake.Installed);
+            Assert.Equal((WinGetStatus.Installed, "26.06"), (w.Rows.Single(r => r.Id == "7zip.7zip").State, w.Rows.Single(r => r.Id == "7zip.7zip").Installed));
+            Assert.Equal(WinGetStatus.Failed, w.Rows.Single(r => r.Id == "M2Team.NanaZip").State);
+            Assert.True(w.InstalledAny);
+            Assert.Contains(log, l => l.Contains("0x80073D28", StringComparison.Ordinal));
+            Assert.Contains("1 installed, 1 failed", Describe(w), StringComparison.Ordinal);
         }
         finally
         {

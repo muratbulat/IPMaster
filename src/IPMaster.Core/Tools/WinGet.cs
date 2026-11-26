@@ -12,6 +12,10 @@ public enum WinGetStatus
     Failed,
     NotSupported,
     Pinned,
+    Installed,
+
+    /// <summary>The command ended without an error, but reading the package back did not confirm the change.</summary>
+    Unverified,
 }
 
 /// <summary>One package as <c>winget list</c> reports it. <see cref="Id"/> and <see cref="Source"/> address it exactly.</summary>
@@ -37,6 +41,9 @@ public sealed record WinGetPackage
 /// <summary>A parsed WinGet table (<c>winget list</c>, <c>winget pin list</c>): rows of cells by column position.</summary>
 public sealed record WinGetTable(IReadOnlyList<string> Headers, IReadOnlyList<IReadOnlyList<string>> Rows);
 
+/// <summary>One row of <c>winget search</c>. An empty <see cref="Source"/> means the source column was absent: not installable exactly.</summary>
+public sealed record WinGetSearchHit(string Name, string Id, string Version, string Match, string Source);
+
 public sealed record WinGetUpdateResult(string Id, string Name, string FromVersion, string? ToVersion, WinGetStatus Status, int ExitCode, string Message, bool RestartRequired);
 
 /// <summary>
@@ -57,14 +64,16 @@ public static class WinGet
         WinGetStatus.Failed => "Failed",
         WinGetStatus.NotSupported => "Not Supported",
         WinGetStatus.Pinned => "Pinned",
+        WinGetStatus.Installed => "Installed",
+        WinGetStatus.Unverified => "Not Verified",
         _ => "Unknown",
     };
 
     /// <summary>Semantic state class: success, warning, error, info, or null (neutral).</summary>
     public static string? StateClass(WinGetStatus s) => s switch
     {
-        WinGetStatus.Current or WinGetStatus.Updated => "success",
-        WinGetStatus.UpdateAvailable => "warning",
+        WinGetStatus.Current or WinGetStatus.Updated or WinGetStatus.Installed => "success",
+        WinGetStatus.UpdateAvailable or WinGetStatus.Unverified => "warning",
         WinGetStatus.Failed => "error",
         WinGetStatus.Updating => "info",
         _ => null,
@@ -150,6 +159,23 @@ public static class WinGet
         var table = ParseTables(output).FirstOrDefault(t => t.Headers.Count >= 4);
         return table is null ? new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             : table.Rows.Select(r => r[1]).Where(id => id.Length > 0 && !id.Contains(' ', StringComparison.Ordinal)).ToHashSet(StringComparer.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Hits from <c>winget search</c>: Name, Id, Version, [Match], Source. Match cells look like "Tag: x" (always a colon,
+    /// source names never have one), which tells a 4-column table without Source from one without Match.
+    /// </summary>
+    public static IReadOnlyList<WinGetSearchHit> ParseSearch(string output)
+    {
+        var table = ParseTables(output).FirstOrDefault(t => t.Headers.Count is 3 or 4 or 5);
+        if (table is null) return [];
+        var lastIsMatch = table.Headers.Count == 4 && table.Rows.Any(r => r[3].Contains(':', StringComparison.Ordinal));
+        var hasSource = table.Headers.Count == 5 || (table.Headers.Count == 4 && !lastIsMatch);
+        var hasMatch = table.Headers.Count == 5 || lastIsMatch;
+        return table.Rows
+            .Where(r => r[1].Length > 0 && !r[1].Contains(' ', StringComparison.Ordinal) && !r[1].Contains('…', StringComparison.Ordinal))
+            .Select(r => new WinGetSearchHit(r[0], r[1], r[2], hasMatch ? r[3] : "", hasSource ? r[^1] : ""))
+            .ToList();
     }
 
     private static bool IsSeparator(string line)
@@ -257,6 +283,20 @@ public static class WinGet
         return a;
     }
 
+    public const int SearchLimit = 100;
+
+    public static IReadOnlyList<string> SearchArguments(string query) => ["search", "--query", query.Trim(), "--count", SearchLimit.ToString(CultureInfo.InvariantCulture), "--disable-interactivity"];
+
+    /// <summary>The exact install command: id, --exact and its source; agreements only when the user accepted them.</summary>
+    public static IReadOnlyList<string> InstallArguments(WinGetSearchHit h, bool acceptAgreements)
+    {
+        var a = new List<string> { "install", "--id", h.Id, "--exact", "--source", h.Source, "--disable-interactivity" };
+        if (acceptAgreements) a.AddRange(["--accept-package-agreements", "--accept-source-agreements"]);
+        return a;
+    }
+
+    public static bool IsInstallable(WinGetSearchHit h) => h.Source.Length > 0 && h.Id.Length > 0 && !h.Id.Contains(' ', StringComparison.Ordinal);
+
     // ---------------- results ----------------
 
     /// <summary>Short text of documented WinGet exit codes (winget-cli returnCodes.md); other codes show as hex.</summary>
@@ -272,7 +312,7 @@ public static class WinGet
         0x8A15003A or 0x8A15010F => "Blocked by policy.",
         0x8A150109 or 0x8A15010B => "Restart required.",
         0x8A15010A => "Restart the computer, then try again.",
-        0x8A150019 => "Administrator access required.",
+        0x8A150019 or 0x80073D28 => "Administrator access required.",
         0x8A15010C => "Update cancelled.",
         0x8A150045 or 0x8A15004B or 0x8A150015 => "Source unavailable.",
         0x8A15006D => "Service unavailable. Try again later.",
@@ -288,22 +328,30 @@ public static class WinGet
 
     /// <summary>
     /// The result from the exit code and the package read back afterwards. A zero exit code is "Updated" only when the
-    /// installed version changed and no upgrade is offered any more; otherwise "Completed. Verification unavailable."
+    /// installed version changed and no upgrade is offered any more; otherwise "Not Verified" with the reason.
     /// </summary>
     public static WinGetUpdateResult Verify(WinGetPackage before, int exitCode, WinGetPackage? after)
     {
         var restart = IsRestartCode(exitCode);
-        if (exitCode != 0 && !restart) return new(before.Id, before.Name, before.InstalledVersion, after?.InstalledVersion, WinGetStatus.Failed, exitCode, ExitText(exitCode), false);
-        if (after is not null && !IsUnknownVersion(after.InstalledVersion) && after.InstalledVersion != before.InstalledVersion && after.AvailableVersion.Length == 0)
-        {
-            return new(before.Id, before.Name, before.InstalledVersion, after.InstalledVersion, WinGetStatus.Updated, exitCode, restart ? "Updated. Restart required." : "Updated.", restart);
-        }
+        WinGetUpdateResult R(WinGetStatus s, string m) => new(before.Id, before.Name, before.InstalledVersion, after?.InstalledVersion, s, exitCode, m, restart);
+        if (exitCode != 0 && !restart) return R(WinGetStatus.Failed, ExitText(exitCode)) with { RestartRequired = false };
+        var tail = restart ? " Restart required." : "";
+        if (after is null) return R(WinGetStatus.Unverified, "Completed, but the package could not be read back." + tail);
+        if (IsUnknownVersion(after.InstalledVersion)) return R(WinGetStatus.Unverified, $"Completed, but WinGet reports the installed version as \"{after.InstalledVersion}\"." + tail);
+        if (after.InstalledVersion != before.InstalledVersion && after.AvailableVersion.Length == 0) return R(WinGetStatus.Updated, "Updated." + tail);
+        if (after.InstalledVersion == before.InstalledVersion && after.AvailableVersion.Length > 0 && !restart) return R(WinGetStatus.Failed, "Completed, but the update is still offered.");
+        if (after.AvailableVersion.Length > 0) return R(WinGetStatus.Unverified, $"Now {after.InstalledVersion}; {after.AvailableVersion} is still offered." + tail);
+        return R(WinGetStatus.Unverified, $"Completed, but the installed version is still {after.InstalledVersion}." + tail);
+    }
 
-        if (after is not null && after.InstalledVersion == before.InstalledVersion && after.AvailableVersion.Length > 0 && !restart)
-        {
-            return new(before.Id, before.Name, before.InstalledVersion, after.InstalledVersion, WinGetStatus.Failed, exitCode, "Completed, but the update is still offered.", false);
-        }
-
-        return new(before.Id, before.Name, before.InstalledVersion, after?.InstalledVersion, WinGetStatus.Unknown, exitCode, restart ? "Restart required. Verification unavailable." : "Completed. Verification unavailable.", restart);
+    /// <summary>An install is "Installed" only when WinGet lists the package afterwards.</summary>
+    public static WinGetUpdateResult VerifyInstall(WinGetSearchHit h, int exitCode, WinGetPackage? after)
+    {
+        var restart = IsRestartCode(exitCode);
+        if (exitCode != 0 && !restart) return new(h.Id, h.Name, "", null, WinGetStatus.Failed, exitCode, ExitText(exitCode).Replace("Update", "Install", StringComparison.Ordinal), false);
+        var tail = restart ? " Restart required." : "";
+        return after is null
+            ? new(h.Id, h.Name, "", null, WinGetStatus.Unverified, exitCode, "Completed, but the package is not listed as installed." + tail, restart)
+            : new(h.Id, h.Name, "", after.InstalledVersion, WinGetStatus.Installed, exitCode, $"Installed {after.InstalledVersion}." + tail, restart);
     }
 }
