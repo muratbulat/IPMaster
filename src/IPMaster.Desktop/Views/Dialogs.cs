@@ -121,16 +121,15 @@ internal static partial class Dialogs
     public sealed record AdapterChoice(string Adapter, AdapterAddress Address, string Range);
 
     /// <summary>
-    /// Auto Detect Local IP Range (D-101): searchable, filterable adapter groups (<see cref="AdapterPickerViewModel"/>).
-    /// Returns the chosen, deduplicated ranges and whether to append; null when cancelled.
+    /// Local IP range detection (D-101; IP Address Tools → Local Range, D-111): searchable, filterable adapter groups
+    /// (<see cref="AdapterPickerViewModel"/>). <paramref name="add"/> receives the chosen, deduplicated ranges and whether to append,
+    /// after the large-scan confirmation; what it returns is shown on the status line.
     /// </summary>
-    public static async Task<(IReadOnlyList<AdapterChoice> Chosen, bool Append)?> DetectAsync(Window owner, Func<IReadOnlyList<NetworkAdapterInfo>> adapters, ulong largeThreshold)
+    public static Control AdapterPicker(Func<IReadOnlyList<NetworkAdapterInfo>> adapters, ulong largeThreshold, Func<IReadOnlyList<AdapterChoice>, bool, string> add)
     {
-        var w = Shell("Auto Detect Local IP Range", 780, 600);
-        w.MinWidth = 520;
-        w.MinHeight = 380;
         var vm = new AdapterPickerViewModel(adapters(), largeThreshold);
-        (IReadOnlyList<AdapterChoice>, bool)? result = null;
+        var panel = new DockPanel { Margin = Styling.Theme.Page };
+        var status = new TextBlock { Classes = { "status" }, TextWrapping = TextWrapping.Wrap };
 
         var search = ToolKit.Text("Search adapters", "name, description, MAC, address, gateway or type");
         search.Bind(TextBox.TextProperty, new ReflectionBinding(nameof(AdapterPickerViewModel.Search)) { Source = vm, Mode = BindingMode.TwoWay });
@@ -213,17 +212,14 @@ internal static partial class Dialogs
 
         BuildList();
         var append = new CheckBox { Content = "Append to the current ranges instead of replacing them" };
-        var add = new Button { Content = "Add Selected Ranges", IsDefault = true, Classes = { "accent" } };
-        add.Bind(Avalonia.Input.InputElement.IsEnabledProperty, new ReflectionBinding(nameof(AdapterPickerViewModel.CanSubmit)) { Source = vm });
-        var cancel = new Button { Content = "Cancel", IsCancel = true };
-        add.Click += async (_, _) =>
+        var addButton = new Button { Content = "Add Selected Ranges", Classes = { "accent" } };
+        addButton.Bind(Avalonia.Input.InputElement.IsEnabledProperty, new ReflectionBinding(nameof(AdapterPickerViewModel.CanSubmit)) { Source = vm });
+        addButton.Click += async (_, _) =>
         {
-            if (!vm.CanSubmit) return;
-            if (vm.IsLarge && !await MessageAsync(w, "Large scan", vm.Warning + "\n\nAdd these ranges anyway?", confirm: true)) return;
-            result = (vm.Result().Select(r => new AdapterChoice(r.Adapter, r.Address, r.Range)).ToList(), append.IsChecked == true);
-            w.Close();
+            if (!vm.CanSubmit || TopLevel.GetTopLevel(panel) is not Window owner) return;
+            if (vm.IsLarge && !await MessageAsync(owner, "Large scan", vm.Warning + "\n\nAdd these ranges anyway?", confirm: true)) return;
+            status.Text = add(vm.Result().Select(r => new AdapterChoice(r.Adapter, r.Address, r.Range)).ToList(), append.IsChecked == true);
         };
-        cancel.Click += (_, _) => w.Close();
         var tools = Ui.Row(
             Ui.Button("Select Visible", () =>
             {
@@ -248,20 +244,16 @@ internal static partial class Dialogs
             }));
 
         var top = new StackPanel { Spacing = Styling.Theme.FormRowGap, Children = { search, filters, notes } };
-        var bottom = new StackPanel { Spacing = Styling.Theme.FormRowGap, Margin = new Thickness(0, Styling.Theme.SectionGap, 0, 0), Children = { tools, append, Buttons(add, cancel) } };
+        var bottom = new StackPanel { Spacing = Styling.Theme.FormRowGap, Margin = new Thickness(0, Styling.Theme.SectionGap, 0, 0), Children = { tools, append, Buttons(addButton), status } };
         var scroller = new ScrollViewer { Content = list, HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled };
         var surface = new Border { Child = scroller, BorderThickness = new Thickness(1), Padding = new Thickness(4), Margin = new Thickness(0, Styling.Theme.SectionGap, 0, 0) };
         surface.Bind(Border.BorderBrushProperty, surface.GetResourceObservable("IpmBorder"));
-        var panel = new DockPanel { Margin = Styling.Theme.Page };
         DockPanel.SetDock(top, Dock.Top);
         DockPanel.SetDock(bottom, Dock.Bottom);
         panel.Children.Add(top);
         panel.Children.Add(bottom);
         panel.Children.Add(surface);
-        w.Content = panel;
-        w.Opened += (_, _) => search.Focus();
-        await w.ShowDialog(owner);
-        return result;
+        return panel;
     }
 
     public static async Task<string?> PromptAsync(Window owner, string title, string label, string initial)

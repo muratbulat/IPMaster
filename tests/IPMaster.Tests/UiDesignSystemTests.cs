@@ -203,13 +203,25 @@ public class UiDesignSystemTests
         ["UPnP Discovery"] = () => new DiscoveryWindow("UPnP Devices", IPMaster.Core.Discovery.DiscoveryProtocol.Ssdp, (_, _, _) => Task.FromResult<IReadOnlyList<IPMaster.Core.Discovery.DiscoveredDevice>>([])),
         ["DHCP Server Discovery"] = () => new DhcpWindow(new IPMaster.Infrastructure.Discovery.DhcpDiscovery(), "", _ => Task.CompletedTask),
         ["Duplicate IP Detection"] = () => new DuplicateIpWindow(HeadlessUi.Service<IPMaster.Infrastructure.Discovery.DuplicateIpScanner>(), _ => ""),
-        ["Wake-on-LAN Manager"] = () => new WolManagerWindow(new IPMaster.Core.Management.WolSettings(), HeadlessUi.Service<IPMaster.Infrastructure.Management.WakeOnLanSender>(), _ => Task.CompletedTask),
         ["Compare Columns"] = () => new CompareWindow(IPMaster.Core.Results.ColumnCatalog.All, HeadlessUi.Vm.Format),
         ["Device Inventory"] = () => new InventoryWindow(HeadlessUi.Vm),
         ["Background Scan Log"] = () => new ScanLogWindow(HeadlessUi.Vm.Ops.Log),
-        ["WMI Query Manager"] = () => new QueryManagerWindow(HeadlessUi.Vm, IPMaster.Core.Queries.QueryKind.Wmi),
-        ["SNMP Query Manager"] = () => new QueryManagerWindow(HeadlessUi.Vm, IPMaster.Core.Queries.QueryKind.Snmp),
-        ["Script Query Manager"] = () => new QueryManagerWindow(HeadlessUi.Vm, IPMaster.Core.Queries.QueryKind.Script),
+        ["Remote Query Manager - SNMP"] = () => new QueryManagerWindow(HeadlessUi.Vm, IPMaster.Core.Queries.QueryKind.Snmp),
+        ["Remote Query Manager - Scripting"] = () => new QueryManagerWindow(HeadlessUi.Vm, IPMaster.Core.Queries.QueryKind.Script),
+        ["Remote Query Manager - Nmap"] = () => new QueryManagerWindow(HeadlessUi.Vm, IPMaster.Core.Queries.QueryKind.Nmap),
+        ["DNS Tools - Bulk Audit"] = () => new DnsToolsWindow(tab: DnsToolsWindow.BulkAuditTab),
+        ["SNMP Tools - Interface Monitor"] = () => new SnmpToolsWindow(HeadlessUi.Vm, tab: SnmpToolsWindow.InterfaceMonitorTab),
+        ["SNMP Tools - Queries"] = () => new SnmpToolsWindow(HeadlessUi.Vm, tab: SnmpToolsWindow.QueriesTab),
+        ["IP Address Tools - From Host Name"] = () => new IpAddressToolsWindow(HeadlessUi.Vm, IpAddressToolsWindow.FromHostNameTab),
+        // selected after construction: opening on this tab would ask the public service at once
+        ["IP Address Tools - External IP"] = () =>
+        {
+            var w = new IpAddressToolsWindow(HeadlessUi.Vm);
+            w.Tabs.SelectedIndex = IpAddressToolsWindow.ExternalIpTab;
+            return w;
+        },
+        ["WMI Query Examples"] = () => new QueryExamplesWindow(IPMaster.Core.Queries.QueryKind.Wmi),
+        ["PowerShell Query Examples"] = () => new QueryExamplesWindow(IPMaster.Core.Queries.QueryKind.PowerShell),
         ["WinGet Install Packages"] = () => new WinGetInstallWindow(new FakeWinGet(), new Dictionary<string, string>(), _ => { }),
     };
 

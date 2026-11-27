@@ -982,43 +982,10 @@ public partial class MainWindow : Window, IDialogs
         await Vm.ApplySettingsAsync(Vm.Settings with { IgnoredAddresses = lines });
     }
 
-    private async void OnDetect(object? sender, RoutedEventArgs e)
+    /// <summary>Toolbar "Detect local IP range": Tools → Discovery → IP Address Tools on the Local Range tab (D-111).</summary>
+    private void OnDetect(object? sender, RoutedEventArgs e)
     {
-        if (Vm is null) return;
-        var result = await Dialogs.DetectAsync(this, Vm.Adapters.GetAdapters, Vm.Settings.ConfirmationThreshold);
-        if (result is not { } r || r.Chosen.Count == 0) return;
-        Vm.SetRanges(r.Chosen.Select(c => new RangeEntryViewModel { Target = c.Range, Comment = c.Adapter }), r.Append);
-    }
-
-    private async void OnDetectHost(object? sender, RoutedEventArgs e)
-    {
-        if (Vm is null) return;
-        var host = await Dialogs.PromptAsync(this, "Detect IP Range from Host Name", "Host name:", "");
-        if (string.IsNullOrWhiteSpace(host)) return;
-        IReadOnlyList<System.Net.IPAddress> addrs;
-        try
-        {
-            addrs = await Vm.Planner.ResolveHostAsync(host.Trim(), CancellationToken.None);
-        }
-        catch (System.Net.Sockets.SocketException ex)
-        {
-            await ShowMessageAsync("Detect IP Range from Host Name", $"{host} could not be resolved: {ex.Message}");
-            return;
-        }
-
-        if (addrs.Count == 0)
-        {
-            await ShowMessageAsync("Detect IP Range from Host Name", $"{host} has no addresses.");
-            return;
-        }
-
-        var first = addrs[0].ToString();
-        var options = new List<string> { $"Address only ({first})" };
-        if (addrs[0].AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork) options.Add($"Class C range ({MainWindowViewModel.ExpandPasted(first, 24)})");
-        var choice = await Dialogs.ChoiceAsync(this, "Detect IP Range from Host Name", $"{host} resolves to {string.Join(", ", addrs)}.", options);
-        if (choice is not { } c) return;
-        var target = c == 1 ? MainWindowViewModel.ExpandPasted(first, 24)! : first;
-        Vm.SetRanges([new RangeEntryViewModel { Target = target, Comment = host.Trim() }], append: false);
+        if (Vm is not null) new IpAddressToolsWindow(Vm).Show(this);
     }
 
     private async void OnOptions(object? sender, RoutedEventArgs e) => await ShowOptionsAsync(null);

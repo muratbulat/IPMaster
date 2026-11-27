@@ -80,7 +80,7 @@ public sealed partial class OptionsViewModel : ObservableObject
         LookupMonitors = s.LookupMonitors;
         ListTerminalSessions = s.ListTerminalSessions;
         _credentialIds = [null, .. settings.Credentials.Select(c => (Guid?)c.Id)];
-        CredentialChoices = [(settings.Credentials.Count == 0 ? "Current account (add credentials in Options → Credential Manager)" : "Current account"), .. settings.Credentials.Select(c => c.Display)];
+        CredentialChoices = [(settings.Credentials.Count == 0 ? "Current account (add credentials in Tools → Remote Management → Credential Manager)" : "Current account"), .. settings.Credentials.Select(c => c.Display)];
         WorkstationCredentialIndex = Math.Max(0, _credentialIds.IndexOf(s.WorkstationCredentialId));
         SharesCredentialIndex = Math.Max(0, _credentialIds.IndexOf(s.SharesCredentialId));
 

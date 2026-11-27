@@ -177,13 +177,12 @@ public class AdapterPickerWindowTests
         foreach (var variant in new[] { ThemeVariant.Light, ThemeVariant.Dark })
         {
             HeadlessUi.SetTheme(variant);
-            var owner = new Window { Width = 900, Height = 700 };
-            owner.Show();
+            // as in IP Address Tools → Local Range (D-111): a tab of a window at that window's sizes
+            var picker = Dialogs.AdapterPicker(() => list, 65_536, (_, _) => "");
+            var dialog = new Window { Width = 800, Height = 620, MinWidth = 560, MinHeight = 400, Content = new TabControl { Items = { new TabItem { Header = "Local Range", Content = picker } } } };
+            dialog.Show();
             try
             {
-                _ = Dialogs.DetectAsync(owner, () => list, 65_536);
-                UiDesignSystemTests.Dispatch();
-                var dialog = Assert.Single(owner.OwnedWindows);
                 UiDesignSystemTests.Dispatch();
                 HeadlessUi.Snapshot(dialog, $"Adapter picker {count} - {variant}");
                 dialog.Width = dialog.MinWidth;
@@ -191,11 +190,10 @@ public class AdapterPickerWindowTests
                 UiDesignSystemTests.Dispatch();
                 HeadlessUi.Snapshot(dialog, $"Adapter picker {count} - {variant} - minimum size");
                 UiDesignSystemTests.AssertNoActionCutOff(dialog, "Adapter picker");
-                dialog.Close();
             }
             finally
             {
-                owner.Close();
+                dialog.Close();
             }
         }
 

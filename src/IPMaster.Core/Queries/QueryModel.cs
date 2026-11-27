@@ -1,6 +1,6 @@
 namespace IPMaster.Core.Queries;
 
-/// <summary>The remote query families of the manual (Options → Remote …). Each produces one dynamic result column.</summary>
+/// <summary>The remote query families of the manual (Options → Remote …; Tools → Remote Query Manager since D-111). Each produces one dynamic result column.</summary>
 public enum QueryKind
 {
     Wmi,

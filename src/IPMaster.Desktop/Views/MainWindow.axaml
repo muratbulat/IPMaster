@@ -108,32 +108,10 @@
       </MenuItem>
       <MenuItem Header="_Options">
         <MenuItem Header="_Scan Options…" InputGesture="Ctrl+O" Click="OnOptions" />
-        <MenuItem Header="_IP Address">
-          <MenuItem Header="_Auto Detect Local IP Range…" Click="OnDetect" />
-          <MenuItem Header="Detect IP Range from _Host Name…" Click="OnDetectHost" />
-          <MenuItem Header="Detect _External IP Address…" Click="OnExternalIp" />
-        </MenuItem>
         <MenuItem Header="I_gnored IP Addresses…" Click="OnIgnored" />
         <Separator />
-        <MenuItem Header="_Wake-On-LAN Manager…" Click="OnWolManager" />
         <MenuItem Header="_Friendly Names / Comments…" Click="OnFriendlyNames" />
         <MenuItem Header="_Virtual Columns…" Click="OnVirtualColumns" />
-        <Separator />
-        <MenuItem Header="_Credential Manager…" Click="OnCredentialManager" />
-        <MenuItem Header="Remote W_MI…" Tag="Wmi" InputGesture="Ctrl+W" Click="OnQueryManager" />
-        <MenuItem Header="Remote _Registry…" Tag="Registry" Click="OnQueryManager" />
-        <MenuItem Header="Remote _Files…" Tag="Files" Click="OnQueryManager" />
-        <MenuItem Header="Remote _Services…" Tag="Services" Click="OnQueryManager" />
-        <MenuItem Header="Remote _Groups…" Tag="Groups" Click="OnQueryManager" />
-        <MenuItem Header="Remote _Performance…" Tag="Performance" Click="OnQueryManager" />
-        <MenuItem Header="Remote Power_Shell…" Tag="PowerShell" Click="OnQueryManager" />
-        <MenuItem Header="Remote Scrip_ting…" Tag="Script" Click="OnQueryManager" />
-        <MenuItem Header="Remote SN_MP…" Tag="Snmp" Click="OnQueryManager" />
-        <MenuItem Header="Remote SS_H…" Tag="Ssh" Click="OnQueryManager" />
-        <MenuItem Header="Remote _XML…" Tag="Xml" Click="OnQueryManager" />
-        <MenuItem Header="Remote _JSON…" Tag="Json" Click="OnQueryManager" />
-        <MenuItem Header="Integration with _Nmap…" Tag="Nmap" Click="OnQueryManager" />
-        <MenuItem Header="Remote P_ython…" Tag="Python" Click="OnQueryManager" />
       </MenuItem>
       <MenuItem Header="_Bookmarks" x:Name="BookmarksMenu" />
       <MenuItem Header="_Reports">

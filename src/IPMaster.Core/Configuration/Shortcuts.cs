@@ -85,16 +85,57 @@ public static class Shortcuts
         };
     }
 
+    /// <summary>
+    /// Command ids renamed by the Options/Tools reorganisation (D-111): old id → new id. Saved shortcuts keep their old ids (an
+    /// older version still reads them); <see cref="Effective"/> applies them to the new command, <see cref="Assign"/> replaces them.
+    /// </summary>
+    public static readonly IReadOnlyDictionary<string, string> LegacyIds = new Dictionary<string, string>(StringComparer.Ordinal)
+    {
+        ["Options/IP Address/Auto Detect Local IP Range"] = "Tools/IP Address Tools",
+        ["Options/IP Address/Detect IP Range from Host Name"] = "Tools/IP Address Tools/From Host Name",
+        ["Options/IP Address/Detect External IP Address"] = "Tools/IP Address Tools/External IP",
+        ["Options/Wake-On-LAN Manager"] = "Tools/Wake-on-LAN Manager",
+        ["Options/Credential Manager"] = "Tools/Credential Manager",
+        ["Options/Remote WMI"] = "Tools/Remote Query Manager",
+        ["Options/Remote Registry"] = "Tools/Remote Query Manager/Registry",
+        ["Options/Remote Files"] = "Tools/Remote Query Manager/Files",
+        ["Options/Remote Services"] = "Tools/Remote Query Manager/Services",
+        ["Options/Remote Groups"] = "Tools/Remote Query Manager/Groups",
+        ["Options/Remote Performance"] = "Tools/Remote Query Manager/Performance",
+        ["Options/Remote PowerShell"] = "Tools/Remote Query Manager/PowerShell",
+        ["Options/Remote Scripting"] = "Tools/Remote Query Manager/Script",
+        ["Options/Remote SNMP"] = "Tools/Remote Query Manager/Snmp",
+        ["Options/Remote SSH"] = "Tools/Remote Query Manager/Ssh",
+        ["Options/Remote XML"] = "Tools/Remote Query Manager/Xml",
+        ["Options/Remote JSON"] = "Tools/Remote Query Manager/Json",
+        ["Options/Integration with Nmap"] = "Tools/Remote Query Manager/Nmap",
+        ["Options/Remote Python"] = "Tools/Remote Query Manager/Python",
+        ["Tools/DNS Diagnostics"] = "Tools/DNS Tools",
+        ["Tools/Bulk DNS Audit"] = "Tools/DNS Tools/Bulk Audit",
+        ["Tools/SNMP Tester"] = "Tools/SNMP Tools",
+        ["Tools/SNMP Interface Monitor"] = "Tools/SNMP Tools/Interface Monitor",
+    };
+
     /// <summary>Effective gesture per command id: the override when one exists (empty = removed), else the default.</summary>
     public static IReadOnlyDictionary<string, string> Effective(IEnumerable<ShortcutCommand> commands, IEnumerable<ShortcutBinding> overrides)
     {
         ArgumentNullException.ThrowIfNull(commands);
         ArgumentNullException.ThrowIfNull(overrides);
         var map = commands.ToDictionary(c => c.Id, c => Normalize(c.DefaultGesture) ?? "", StringComparer.Ordinal);
-        foreach (var o in overrides)
+        var list = overrides.ToList();
+        var direct = list.Select(o => o.CommandId).Where(map.ContainsKey).ToHashSet(StringComparer.Ordinal);
+        var renamed = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var o in list)
         {
-            if (!map.ContainsKey(o.CommandId)) continue; // a command that no longer exists
-            map[o.CommandId] = Normalize(o.Gesture) ?? map[o.CommandId];
+            var id = o.CommandId;
+            if (!map.ContainsKey(id))
+            {
+                // a renamed command keeps the user's key (D-111), unless the user set the new command too; the first old entry wins
+                if (!LegacyIds.TryGetValue(id, out var to) || !map.ContainsKey(to) || direct.Contains(to) || !renamed.Add(to)) continue;
+                id = to;
+            }
+
+            map[id] = Normalize(o.Gesture) ?? map[id];
         }
 
         return map;
@@ -118,7 +159,7 @@ public static class Shortcuts
         ArgumentNullException.ThrowIfNull(overrides);
         ArgumentNullException.ThrowIfNull(command);
         var g = Normalize(gesture) ?? throw new ArgumentException($"'{gesture}' is not a keyboard shortcut.", nameof(gesture));
-        var rest = overrides.Where(o => o.CommandId != command.Id).ToList();
+        var rest = overrides.Where(o => o.CommandId != command.Id && LegacyIds.GetValueOrDefault(o.CommandId) != command.Id).ToList(); // the old id is replaced too
         if (g != (Normalize(command.DefaultGesture) ?? "")) rest.Add(new ShortcutBinding { CommandId = command.Id, Gesture = g });
         return rest;
     }

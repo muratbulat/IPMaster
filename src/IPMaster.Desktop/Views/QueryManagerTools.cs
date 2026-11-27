@@ -15,9 +15,9 @@ namespace IPMaster.Desktop.Views;
 /// <summary>
 /// Layout for the external-tool managers (Nmap, Python; D-072): description and detected dependency at the top, location and
 /// download actions, a checkbox table, and search + New/Edit/Delete/Mark All at the bottom. The list, editor, validation,
-/// save and test logic are the common <see cref="QueryManagerWindow"/> ones; only what differs per tool is in the switches.
+/// save and test logic are the common <see cref="QueryKindPanel"/> ones; only what differs per tool is in the switches.
 /// </summary>
-internal sealed partial class QueryManagerWindow
+internal sealed partial class QueryKindPanel
 {
     private TextBox? _search;
     private Button? _test;
@@ -139,7 +139,7 @@ internal sealed partial class QueryManagerWindow
 
         var choose = Ui.Button("Choose Location…", async () =>
         {
-            var files = await StorageProvider.OpenFilePickerAsync(new Avalonia.Platform.Storage.FilePickerOpenOptions
+            var files = await Owner.StorageProvider.OpenFilePickerAsync(new Avalonia.Platform.Storage.FilePickerOpenOptions
             {
                 Title = _kind == QueryKind.Nmap ? "Nmap executable" : "Python interpreter",
             });
@@ -184,13 +184,15 @@ internal sealed partial class QueryManagerWindow
         var buttons = Ui.Row(
             Ui.Button("New…", async () =>
             {
-                if (await QueryEditor.EditAsync(this, _vm, QueryDefinition.New(_kind, "")) is { } q) await SaveAsync(items => [.. items, q]);
+                if (await QueryEditor.EditAsync(Owner, _vm, QueryDefinition.New(_kind, "")) is { } q) await SaveAsync(items => [.. items, q]);
             }),
+            Ui.Button("Examples…", AddExampleAsync),
             Ui.Button("Edit…", EditSelected),
+            Ui.Button("Duplicate", DuplicateSelected),
             Ui.Button("Delete", async () =>
             {
                 var sel = _grid.SelectedItems.OfType<Row>().Select(r => r.Query.Id).ToHashSet();
-                if (sel.Count == 0 || !await Dialogs.MessageAsync(this, "Delete", $"Delete {sel.Count} item(s)?", confirm: true)) return;
+                if (sel.Count == 0 || !await Dialogs.MessageAsync(Owner, "Delete", $"Delete {sel.Count} item(s)?", confirm: true)) return;
                 await SaveAsync(items => items.Where(i => !sel.Contains(i.Id)).ToList());
             }),
             Ui.Button("Mark All/None", async () =>

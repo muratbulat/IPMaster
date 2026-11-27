@@ -439,7 +439,10 @@ internal static class CredentialManagerWindow
 {
     public sealed record Row(StoredCredential Credential, string UserName, string Password, string Comment, string Tag);
 
-    public static async Task ShowAsync(Window owner, MainWindowViewModel vm)
+    public static Task ShowAsync(Window owner, MainWindowViewModel vm) => Create(vm).ShowDialog(owner);
+
+    /// <summary>The window (Tools → Remote Management → Credential Manager, D-111); shown modally, as before.</summary>
+    public static Window Create(MainWindowViewModel vm)
     {
         var w = Ui.Window("Credential Manager", 760, 460);
         var grid = Ui.Grid(("Username", "UserName", 200), ("Password", "Password", 110), ("Comment", "Comment", 0), ("Tag", "Tag", 120));
@@ -591,6 +594,6 @@ internal static class CredentialManagerWindow
             }));
         w.Content = Ui.Layout(null, grid, new StackPanel { Spacing = 8, Children = { status, buttons } });
         Refresh();
-        await w.ShowDialog(owner);
+        return w;
     }
 }

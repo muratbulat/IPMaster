@@ -45,17 +45,10 @@ public partial class MainWindow
         new DuplicateIpWindow(Service<DuplicateIpScanner>(), mac => Vm.Oui.Capability.Available ? Vm.Oui.Lookup(mac) ?? "" : "").Show(this);
     }
 
-    private async void OnExternalIp(object? sender, RoutedEventArgs e)
-    {
-        if (Vm is null) return;
-        if (await ManagementDialogs.ExternalIpAsync(this) is { } ip) Vm.SetRanges([new RangeEntryViewModel { Target = ip, Comment = "External address" }], append: true);
-    }
-
     // ---------------- Wake-on-LAN ----------------
     private void OnWolManager(object? sender, RoutedEventArgs e)
     {
-        if (Vm is null) return;
-        new WolManagerWindow(Vm.Settings.Wol, Service<WakeOnLanSender>(), wol => Vm.UpdateSettingsAsync(s => s with { Wol = wol })).Show(this);
+        if (Vm is not null) WolWindow(Vm).Show(this);
     }
 
     private async Task WakeNodesAsync(IReadOnlyList<DeviceNode> nodes)

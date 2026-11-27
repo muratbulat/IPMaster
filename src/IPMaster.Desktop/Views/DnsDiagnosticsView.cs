@@ -6,21 +6,17 @@ using IPMaster.Infrastructure.Tools;
 namespace IPMaster.Desktop.Views;
 
 /// <summary>Tools → DNS Diagnostics (D-073): direct queries to chosen servers, server comparison, forward/reverse check.</summary>
-internal sealed class DnsDiagnosticsWindow : Window
+internal sealed class DnsDiagnosticsView : UserControl, IDisposable
 {
+    private Action? _dispose;
+
     private static readonly string[] AutoType = ["Auto (A, or PTR for an address)"];
 
     private sealed record Input(string Name, DnsType? Type, List<IPEndPoint> Servers, DnsQueryOptions Options, bool Os);
 
 
-    public DnsDiagnosticsWindow(string? target = null)
+    public DnsDiagnosticsView(string? target = null)
     {
-        Title = "DNS Diagnostics";
-        Width = 1000;
-        Height = 720;
-        MinWidth = 560;
-        MinHeight = 400;
-        WindowStartupLocation = WindowStartupLocation.CenterOwner;
         var status = ToolKit.StatusLine();
         var runner = new ToolRunner(status);
         var report = ToolKit.ReportBox("DNS report");
@@ -120,7 +116,7 @@ internal sealed class DnsDiagnosticsWindow : Window
         };
         var actions = Ui.Row(query, compare, reverse, cancel, ToolKit.CopyButton(this, () => report.Text ?? ""), ToolKit.ExportButton(this, () => report.Text ?? "", "dns-report.txt"));
         Content = ToolKit.Layout(f.Grid, actions, report, status);
-        Closed += (_, _) => runner.Dispose();
+        _dispose = runner.Dispose; // the tabbed window disposes its tabs when it closes
         KeyDown += (_, e) =>
         {
             if (e.Key == Avalonia.Input.Key.Escape && runner.IsBusy)
@@ -130,4 +126,7 @@ internal sealed class DnsDiagnosticsWindow : Window
             }
         };
     }
+
+    /// <summary>Cancels the running operation (the window closed).</summary>
+    public void Dispose() => _dispose?.Invoke();
 }

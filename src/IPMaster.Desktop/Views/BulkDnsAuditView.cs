@@ -16,8 +16,10 @@ namespace IPMaster.Desktop.Views;
 /// Tools → Bulk DNS Audit (D-094): forward, reverse and forward-confirmed reverse lookups of many names and addresses
 /// against one or more DNS servers, with consistency findings. Read-only queries; DNS records are never changed.
 /// </summary>
-internal sealed class BulkDnsAuditWindow : Window
+internal sealed class BulkDnsAuditView : UserControl, IDisposable
 {
+    private Action? _dispose;
+
     private sealed record FindingRow(DnsAuditEntry Entry, DnsFinding F)
     {
         public string Input => Entry.Input;
@@ -27,14 +29,8 @@ internal sealed class BulkDnsAuditWindow : Window
         public string Finding => F.Text;
     }
 
-    public BulkDnsAuditWindow()
+    public BulkDnsAuditView()
     {
-        Title = "Bulk DNS Audit";
-        Width = 1150;
-        Height = 800;
-        MinWidth = 680;
-        MinHeight = 460;
-        WindowStartupLocation = WindowStartupLocation.CenterOwner;
         var status = ToolKit.StatusLine();
         var runner = new ToolRunner(status);
         var servers = ToolKit.Text("DNS servers", "comma-separated", 360, string.Join(", ", DnsClient.SystemServers().Take(3)));
@@ -128,7 +124,7 @@ internal sealed class BulkDnsAuditWindow : Window
         };
         var import = Ui.Button("Import File…", async () =>
         {
-            var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions { Title = "Import names and addresses", AllowMultiple = false });
+            var files = await TopLevel.GetTopLevel(this)!.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions { Title = "Import names and addresses", AllowMultiple = false });
             if (files.Count == 0 || files[0].TryGetLocalPath() is not { } path) return;
             var info = new FileInfo(path);
             if (info.Length > 4 * 1024 * 1024)
@@ -168,6 +164,9 @@ internal sealed class BulkDnsAuditWindow : Window
         main.Children.Add(details);
         main.Children.Add(grid);
         Content = ToolKit.Layout(form.Grid, Ui.Row(run, cancel, import, exportCsv, exportJson), main, status);
-        Closed += (_, _) => runner.Dispose();
+        _dispose = runner.Dispose; // the tabbed window disposes its tabs when it closes
     }
+
+    /// <summary>Cancels the running operation (the window closed).</summary>
+    public void Dispose() => _dispose?.Invoke();
 }

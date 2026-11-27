@@ -293,7 +293,7 @@ public sealed class PythonQueryProvider(Func<string> configuredPath) : IRemoteQu
         {
             var (path, version) = DetectAsync(CancellationToken.None).GetAwaiter().GetResult();
             return path is null || version is null
-                ? CapabilityStatus.No("Python was not found. Please install it, or point to the interpreter with Choose Location… (Options → Remote Python).")
+                ? CapabilityStatus.No("Python was not found. Please install it, or point to the interpreter with Choose Location… (Tools → Remote Management → Remote Query Manager → Python).")
                 : CapabilityStatus.Yes($"{version} ({path})");
         }
     }

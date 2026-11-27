@@ -67,8 +67,10 @@ internal sealed class TrafficChart : Styling.ThemedControl
 /// polled read-only at a chosen interval. Rates use the measured interval (agent sysUpTime); counter resets and agent
 /// restarts leave a gap instead of a spike.
 /// </summary>
-internal sealed class SnmpInterfaceMonitorWindow : Window
+internal sealed class SnmpInterfaceMonitorView : UserControl, IDisposable
 {
+    private Action? _dispose;
+
     private const int MaxMonitored = 64;
     private const int MaxHistory = 3600;
 
@@ -116,14 +118,8 @@ internal sealed class SnmpInterfaceMonitorWindow : Window
     private readonly Dictionary<int, List<InterfaceRate>> _history = [];
     private Action? _stopPoll;
 
-    public SnmpInterfaceMonitorWindow(string? target = null)
+    public SnmpInterfaceMonitorView(string? target = null)
     {
-        Title = "SNMP Interface Monitor";
-        Width = 1200;
-        Height = 820;
-        MinWidth = 700;
-        MinHeight = 480;
-        WindowStartupLocation = WindowStartupLocation.CenterOwner;
         var status = ToolKit.StatusLine();
         var runner = new ToolRunner(status);
         var agent = new SnmpTargetForm(target);
@@ -264,7 +260,7 @@ internal sealed class SnmpInterfaceMonitorWindow : Window
         chart.Margin = new Thickness(0, 6, 0, 0);
         split.Children.Add(chart);
         Content = ToolKit.Layout(new StackPanel { Spacing = 4, Children = { agent.Row, options, hint } }, actions, split, status);
-        Closing += (_, _) =>
+        _dispose = () =>
         {
             runner.Dispose();
             _stopPoll?.Invoke();
@@ -347,4 +343,7 @@ internal sealed class SnmpInterfaceMonitorWindow : Window
             return false;
         }
     }
+
+    /// <summary>Cancels the running operation (the window closed).</summary>
+    public void Dispose() => _dispose?.Invoke();
 }

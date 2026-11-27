@@ -9,18 +9,6 @@ namespace IPMaster.Desktop.Views;
 /// <summary>Phase 4: query managers, credential manager, master password, single-column rescan.</summary>
 public partial class MainWindow
 {
-    private void OnQueryManager(object? sender, RoutedEventArgs e)
-    {
-        if (Vm is null || (sender as MenuItem)?.Tag is not string tag) return;
-        new QueryManagerWindow(Vm, Enum.Parse<QueryKind>(tag)).Show(this);
-    }
-
-    private async void OnCredentialManager(object? sender, RoutedEventArgs e)
-    {
-        if (Vm is null) return;
-        await CredentialManagerWindow.ShowAsync(this, Vm);
-    }
-
     /// <summary>Startup: the settings file is encrypted (SEC-02). Cancel keeps defaults and never overwrites the file.</summary>
     private async Task UnlockAtStartupAsync()
     {

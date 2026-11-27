@@ -395,27 +395,6 @@ public class KmsRulesTests
     public void Helper_refuses_unexpected_files() => Assert.Equal(2, KmsHelper.Run(Path.Combine(Path.GetTempPath(), "not-a-request.json")));
 }
 
-public class ToolsMenuOrderTests
-{
-    [Fact]
-    public void Tools_menu_is_alphabetical_ignoring_accelerators_and_ellipsis()
-    {
-        var keys = MainWindow.ToolEntries.Select(t => MainWindow.SortKey(t.Header)).ToList();
-        Assert.Equal(keys.OrderBy(k => k, StringComparer.OrdinalIgnoreCase), keys);
-        Assert.Contains("KMS Activation Manager", keys);
-        Assert.Equal("SNMP Tester", MainWindow.SortKey("SN_MP Tester…"));
-        Assert.Equal(MainWindow.ToolEntries.Length, MainWindow.ToolEntries.Select(t => t.Header).Distinct().Count());
-    }
-
-    [Fact]
-    public void A_new_tool_lands_in_its_alphabetical_place()
-    {
-        var sorted = MainWindow.Sorted(MainWindow.ToolEntries.Append(new MainWindow.ToolEntry("_Aardvark Tool…", (_, _) => null!)).Append(new MainWindow.ToolEntry("Zebra _Tool...", (_, _) => null!)));
-        Assert.Equal("_Aardvark Tool…", sorted[0].Header);
-        Assert.Equal("Zebra _Tool...", sorted[^1].Header);
-    }
-}
-
 [Collection("Headless UI")]
 public class KmsWindowTests
 {

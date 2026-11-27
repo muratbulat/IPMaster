@@ -74,8 +74,11 @@ internal sealed class Form
     }
 }
 
-/// <summary>Manual "Options → Remote …" managers (QRY-01): list, enable/disable, new/edit/delete, test, local value.</summary>
-internal sealed partial class QueryManagerWindow : Window
+/// <summary>
+/// One query type of the Remote Query Manager (QRY-01, D-111): list, search, enable/disable, new/edit/duplicate/delete, examples,
+/// test, local value. A control, not a window: <see cref="QueryManagerWindow"/> shows one panel per type.
+/// </summary>
+internal sealed partial class QueryKindPanel : UserControl
 {
     public sealed record Row(QueryDefinition Query, string On, string Name, string Summary, string Credential, string Local)
     {
@@ -92,6 +95,11 @@ internal sealed partial class QueryManagerWindow : Window
     private readonly TextBlock _status = new() { TextWrapping = TextWrapping.Wrap, Classes = { "status" } };
     private readonly Dictionary<Guid, string> _local = [];
     private readonly bool _hasLocal;
+    private bool _shown;
+
+    private Window Owner => TopLevel.GetTopLevel(this) as Window ?? throw new InvalidOperationException("The query panel is not in a window.");
+
+    public QueryKind Kind => _kind;
 
     public static string TitleFor(QueryKind kind) => kind switch
     {
@@ -116,24 +124,16 @@ internal sealed partial class QueryManagerWindow : Window
         _ => "HTTP Port, Path → Expression",
     };
 
-    public QueryManagerWindow(MainWindowViewModel vm, QueryKind kind)
+    public QueryKindPanel(MainWindowViewModel vm, QueryKind kind)
     {
         _vm = vm;
         _kind = kind;
         _hasLocal = kind is QueryKind.Registry or QueryKind.Files or QueryKind.Services or QueryKind.Groups or QueryKind.Performance;
-        Title = TitleFor(kind);
-        Width = 980;
-        Height = 520;
-        MinWidth = 600;
-        MinHeight = 320;
         if (IsToolManager(kind))
         {
-            Width = 900;
-            Height = 560;
             _grid = ToolGrid();
             _grid.DoubleTapped += async (_, _) => await EditSelected();
             Content = ToolLayout();
-            Opened += (_, _) => Refresh();
             return;
         }
 
@@ -154,41 +154,25 @@ internal sealed partial class QueryManagerWindow : Window
 
         _ = ShowCapabilityAsync();
         top.Children.Add(capLine);
-        if (kind == QueryKind.Python)
-        {
-            top.Children.Add(Ui.Row(
-                Ui.Button("Choose Location…", async () =>
-                {
-                    var files = await StorageProvider.OpenFilePickerAsync(new Avalonia.Platform.Storage.FilePickerOpenOptions { Title = "Python interpreter" });
-                    if (files.Count > 0 && files[0].TryGetLocalPath() is { } p) await _vm.SaveQueriesAsync(_vm.Settings.Queries with { PythonPath = p });
-                    Close();
-                }),
-                Ui.Button("Use Detected", async () => await _vm.SaveQueriesAsync(_vm.Settings.Queries with { PythonPath = "" })),
-                Ui.Button("Download Python", () =>
-                {
-                    _status.Text = Shell.OpenUrl("https://www.python.org/downloads/").Message;
-                    return Task.CompletedTask;
-                })));
-        }
-
-        if (kind == QueryKind.Nmap) top.Children.Add(Ui.Row(Ui.Button("Settings…", NmapSettingsAsync), Form.Info("Nmap: install from nmap.org.")));
         if (kind == QueryKind.Script) top.Children.Add(Form.Hint("Scripts run out of process with Windows Script Host. VBScript is an optional Windows feature that Microsoft is phasing out; JScript and Python remain available."));
-        top.Children.Add(Form.Hint("Each item is a result column. Credentials come from Options → Credential Manager; without one the current Windows account is used (Windows queries) or no authentication (HTTP)."));
+        top.Children.Add(Form.Hint("Each item is a result column. Credentials come from Tools → Remote Management → Credential Manager; without one the current Windows account is used (Windows queries) or no authentication (HTTP)."));
+        _search = new TextBox { PlaceholderText = "Search", Width = 260, HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Left };
+        Avalonia.Automation.AutomationProperties.SetName(_search, "Search " + TitleFor(kind) + " items");
+        _search.TextChanged += (_, _) => Refresh();
+        top.Children.Add(_search);
 
         var buttons = Ui.Row(
             Ui.Button("New…", async () =>
             {
-                if (await QueryEditor.EditAsync(this, _vm, QueryDefinition.New(kind, "")) is { } q) await SaveAsync(items => [.. items, q]);
+                if (await QueryEditor.EditAsync(Owner, _vm, QueryDefinition.New(kind, "")) is { } q) await SaveAsync(items => [.. items, q]);
             }, accent: true),
+            Ui.Button("Examples…", AddExampleAsync),
             Ui.Button("Edit…", EditSelected),
-            Ui.Button("Duplicate", async () =>
-            {
-                if (Selected() is { } q) await SaveAsync(items => [.. items, Clone(q) with { Id = Guid.NewGuid(), Name = q.Name + " (copy)", Enabled = false }]);
-            }),
+            Ui.Button("Duplicate", DuplicateSelected),
             Ui.Button("Delete", async () =>
             {
                 var sel = _grid.SelectedItems.OfType<Row>().Select(r => r.Query.Id).ToHashSet();
-                if (sel.Count == 0 || !await Dialogs.MessageAsync(this, "Delete", $"Delete {sel.Count} item(s)?", confirm: true)) return;
+                if (sel.Count == 0 || !await Dialogs.MessageAsync(Owner, "Delete", $"Delete {sel.Count} item(s)?", confirm: true)) return;
                 await SaveAsync(items => items.Where(i => !sel.Contains(i.Id)).ToList());
             }),
             Ui.Button("Enable / Disable", async () =>
@@ -199,18 +183,44 @@ internal sealed partial class QueryManagerWindow : Window
             Ui.Button("Test…", TestSelected),
             Ui.Button("Close", () =>
             {
-                Close();
+                Owner.Close();
                 return Task.CompletedTask;
             }));
         Content = Ui.Layout(top, _grid, new StackPanel { Spacing = 6, Children = { buttons, _status } });
-        Opened += (_, _) =>
-        {
-            Refresh();
-            _ = ComputeLocalAsync();
-        };
     }
 
+    /// <summary>Called when the panel is shown: the list is read again (another type or window may have saved), local values once.</summary>
+    public void Activate()
+    {
+        Refresh();
+        if (_shown) return;
+        _shown = true;
+        _ = ComputeLocalAsync();
+    }
+
+    /// <summary>Selects one item (Navigator → saved query); a search that hides it is cleared.</summary>
+    public bool Select(Guid id)
+    {
+        if (_search is { Text.Length: > 0 }) _search.Text = "";
+        Refresh();
+        var row = Rows.FirstOrDefault(r => r.Query.Id == id);
+        if (row is null) return false;
+        _grid.SelectedItem = row;
+        _grid.ScrollIntoView(row, null);
+        return true;
+    }
+
+    internal IReadOnlyList<Row> Rows => (_grid.ItemsSource as IEnumerable<Row>)?.ToList() ?? [];
+
+    internal Row? SelectedRow => _grid.SelectedItem as Row;
+
     private QueryDefinition? Selected() => (_grid.SelectedItem as Row)?.Query;
+
+    /// <summary>Duplicate: a disabled copy with a new id (and so a new column id); the original is not changed.</summary>
+    private async Task DuplicateSelected()
+    {
+        if (Selected() is { } q) await SaveAsync(items => [.. items, Clone(q) with { Id = Guid.NewGuid(), Name = q.Name + " (copy)", Enabled = false }]);
+    }
 
     private static QueryDefinition Clone(QueryDefinition q) => q with
     {
@@ -279,7 +289,7 @@ internal sealed partial class QueryManagerWindow : Window
     private async Task EditSelected()
     {
         if (Selected() is not { } q) return;
-        if (await QueryEditor.EditAsync(this, _vm, Clone(q)) is { } edited)
+        if (await QueryEditor.EditAsync(Owner, _vm, Clone(q)) is { } edited)
         {
             _local.Remove(q.Id);
             await SaveAsync(items => items.Select(i => i.Id == q.Id ? edited : i).ToList());
@@ -294,7 +304,7 @@ internal sealed partial class QueryManagerWindow : Window
         var dup = items.Where(q => q.Name.Length > 0).GroupBy(q => (q.Kind, q.Name.ToUpperInvariant())).FirstOrDefault(g => g.Count() > 1);
         if (dup is not null)
         {
-            await Dialogs.MessageAsync(this, Title ?? "", $"There are two {QueryColumns.DisplayName(dup.Key.Kind)} items named '{dup.First().Name}'. Names must be unique per kind (Remote.* calls use them).", confirm: false);
+            await Dialogs.MessageAsync(Owner, TitleFor(_kind), $"There are two {QueryColumns.DisplayName(dup.Key.Kind)} items named '{dup.First().Name}'. Names must be unique per kind (Remote.* calls use them).", confirm: false);
             return false;
         }
 
@@ -302,7 +312,7 @@ internal sealed partial class QueryManagerWindow : Window
         var cycle = graph.Errors.Values.FirstOrDefault(e => e.StartsWith("Dependency cycle", StringComparison.Ordinal));
         if (cycle is not null)
         {
-            await Dialogs.MessageAsync(this, Title ?? "", cycle + "\n\nRemove one of the references (Input.Column / Remote.*) or disable an item.", confirm: false);
+            await Dialogs.MessageAsync(Owner, TitleFor(_kind), cycle + "\n\nRemove one of the references (Input.Column / Remote.*) or disable an item.", confirm: false);
             return false;
         }
 
@@ -312,10 +322,22 @@ internal sealed partial class QueryManagerWindow : Window
         return true;
     }
 
+    /// <summary>Examples… (D-110): adds the chosen example disabled, through the normal validation and save path; nothing runs.</summary>
+    private async Task AddExampleAsync()
+    {
+        if (await new QueryExamplesWindow(_kind).ShowDialog<QueryExample?>(Owner) is not { } example) return;
+        var (items, added) = QueryExamples.Add(_vm.Settings.Queries.Items, example);
+        if (!await SaveAsync(_ => items)) return;
+        _grid.SelectedItem = (_grid.ItemsSource as IEnumerable<Row>)?.FirstOrDefault(r => r.Query.Id == added.Id);
+        _status.Text = $"Added '{added.Name}' (disabled). Select Test… to try it, then Enable / Disable to include it in scans."
+                       + (_status.Text is { Length: > 0 } s ? "\n" + s : "");
+        _ = ComputeLocalAsync();
+    }
+
     private async Task TestSelected()
     {
         if (Selected() is not { } q) return;
-        var target = await Dialogs.PromptAsync(this, "Test " + q.Name, "IP address or host name", _vm.SuggestedTestTarget());
+        var target = await Dialogs.PromptAsync(Owner, "Test " + q.Name, "IP address or host name", _vm.SuggestedTestTarget());
         if (string.IsNullOrWhiteSpace(target)) return;
         _status.Text = $"Testing {q.Name} against {target}…";
         _status.Text = await QueryEditor.RunTestAsync(_vm, q, target.Trim());
@@ -343,7 +365,7 @@ internal sealed partial class QueryManagerWindow : Window
             w.Close();
         }, accent: true);
         w.Content = new StackPanel { Margin = new Thickness(16), Spacing = 10, Children = { f.Grid, Ui.Row(ok, Ui.Button("Cancel", () => { w.Close(); return Task.CompletedTask; })) } };
-        await w.ShowDialog(this);
+        await w.ShowDialog(Owner);
     }
 }
 
@@ -378,7 +400,7 @@ internal static class QueryEditor
 
     public static async Task<QueryDefinition?> EditAsync(Window owner, MainWindowViewModel vm, QueryDefinition q)
     {
-        var w = Ui.Window(QueryManagerWindow.TitleFor(q.Kind) + " Item", 820, 720);
+        var w = Ui.Window(QueryKindPanel.TitleFor(q.Kind) + " Item", 820, 720);
         var f = new Form();
         var apply = new List<Action<QueryDefinition>>();
         var name = f.Add("Item name (column)", new TextBox { Text = q.Name });

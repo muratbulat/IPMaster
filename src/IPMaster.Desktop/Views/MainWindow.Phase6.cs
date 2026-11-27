@@ -81,7 +81,8 @@ public partial class MainWindow
     // ---------------- commands and shortcuts (UI-18) ----------------
     private static string HeaderText(MenuItem m) => m.Header as string ?? m.Header?.ToString() ?? "";
 
-    private void BuildCommands()
+    /// <summary>Builds the command registry from the menus (internal: the menu tests read it through <see cref="CommandCatalog"/>).</summary>
+    internal void BuildCommands()
     {
         _commands = [];
         foreach (var top in MainMenu.Items.OfType<MenuItem>())
@@ -94,7 +95,18 @@ public partial class MainWindow
         {
             if (SelectedNodes().FirstOrDefault() is { } n) _ = AssignFriendlyNameAsync(n);
         }));
+        foreach (var t in ToolShortcuts)
+        {
+            _commands.Add(new AppCommand(new ShortcutCommand(t.Id, t.Name, t.Category, ""), null, () =>
+            {
+                if (Vm is { } vm) ShowTool(t.Open(this, vm));
+            }));
+        }
     }
+
+    internal IReadOnlyList<ShortcutCommand> CommandCatalog => _commands.Select(c => c.Info).ToList();
+
+    internal IReadOnlyList<MenuItem> CommandMenuItems => _commands.Where(c => c.Item is not null).Select(c => c.Item!).ToList();
 
     private void Walk(MenuItem parent, string path)
     {
@@ -109,7 +121,7 @@ public partial class MainWindow
                 continue;
             }
 
-            var id = item.Name is { Length: > 0 } name ? name : path.Replace(" › ", "/", StringComparison.Ordinal) + "/" + header;
+            var id = item.Name is { Length: > 0 } name ? name : _commandIds.TryGetValue(item, out var stable) ? stable : path.Replace(" › ", "/", StringComparison.Ordinal) + "/" + header;
             if (!_defaultGestures.ContainsKey(id)) _defaultGestures[id] = item.InputGesture?.ToString() ?? "";
             var mi = item;
             _commands.Add(new AppCommand(new ShortcutCommand(id, header, path, _defaultGestures[id]), mi, () => InvokeMenuItem(mi)));
@@ -183,7 +195,7 @@ public partial class MainWindow
         items.AddRange(OptionsWindow.Index());
         foreach (var q in Vm.Settings.Queries.Items)
         {
-            items.Add(new NavigatorItem(NavigatorKind.Query, q.Name, "Remote queries › " + q.Kind, $"query:{q.Kind}:{q.Id}"));
+            items.Add(new NavigatorItem(NavigatorKind.Query, q.Name, "Remote Query Manager › " + QueryColumns.DisplayName(q.Kind), $"query:{q.Kind}:{q.Id}"));
         }
 
         foreach (var a in Vm.Settings.Applications.Applications)
@@ -208,7 +220,7 @@ public partial class MainWindow
                 await ShowOptionsAsync(w => w.Reveal(int.Parse(parts[1], CultureInfo.InvariantCulture), parts[2]));
                 break;
             case "query":
-                new QueryManagerWindow(Vm, Enum.Parse<QueryKind>(parts[1])).Show(this);
+                new QueryManagerWindow(Vm, Enum.Parse<QueryKind>(parts[1]), Guid.TryParse(parts[2], out var queryId) ? queryId : null).Show(this);
                 break;
             case "app":
                 var app = Vm.Settings.Applications.Applications.FirstOrDefault(a => a.Name == it.Target[4..]);

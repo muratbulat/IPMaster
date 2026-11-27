@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Controls;
+using Avalonia.Input.Platform;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Platform.Storage;
@@ -68,6 +69,37 @@ internal sealed class ToolRunner : IDisposable
     public void Dispose() => Cancel();
 }
 
+/// <summary>
+/// A tool window whose tabs are separate tools (D-111): each tab is a control (never a window) with its own state and operation,
+/// switching tabs cancels nothing, and closing the window disposes (cancels) every tab that is <see cref="IDisposable"/>.
+/// Not a singleton: every menu click opens its own window.
+/// </summary>
+internal abstract class ToolTabsWindow : Window
+{
+    protected ToolTabsWindow(string title, double width, double height, double minWidth, double minHeight)
+    {
+        Title = title;
+        Width = width;
+        Height = height;
+        MinWidth = minWidth;
+        MinHeight = minHeight;
+        WindowStartupLocation = WindowStartupLocation.CenterOwner;
+        Content = Tabs;
+        Closed += (_, _) =>
+        {
+            foreach (var t in Tabs.Items.OfType<TabItem>()) (t.Content as IDisposable)?.Dispose();
+        };
+    }
+
+    public TabControl Tabs { get; } = new() { Margin = new Thickness(Styling.Theme.PageMargin, Styling.Theme.TightGap, Styling.Theme.PageMargin, Styling.Theme.PageMargin) };
+
+    protected void AddTabs(int selected, params (string Header, Control View)[] tabs)
+    {
+        foreach (var (header, view) in tabs) Tabs.Items.Add(new TabItem { Header = header, Content = view });
+        Tabs.SelectedIndex = Math.Clamp(selected, 0, tabs.Length - 1);
+    }
+}
+
 internal static class ToolKit
 {
     public static readonly FontFamily Mono = new("Cascadia Mono, Consolas, Menlo, monospace");
@@ -92,15 +124,20 @@ internal static class ToolKit
 
     public static TextBlock StatusLine() => new() { Classes = { "status" } };
 
-    public static Button CopyButton(Window owner, Func<string> text, string label = "Copy") => Ui.Button(label, () => Ui.CopyAsync(owner, text()));
+    /// <summary>Owner: the window, or a control inside it (a tab of a tabbed tool window); its top level is looked up when clicked.</summary>
+    public static Button CopyButton(Control owner, Func<string> text, string label = "Copy") => Ui.Button(label, async () =>
+    {
+        if (TopLevel.GetTopLevel(owner)?.Clipboard is { } clipboard) await clipboard.SetTextAsync(text());
+    });
 
-    public static Button ExportButton(Window owner, Func<string> text, string suggestedName, string label = "Export…") =>
+    public static Button ExportButton(Control owner, Func<string> text, string suggestedName, string label = "Export…") =>
         Ui.Button(label, () => SaveTextAsync(owner, text(), suggestedName));
 
-    public static async Task SaveTextAsync(Window owner, string text, string suggestedName)
+    public static async Task SaveTextAsync(Control owner, string text, string suggestedName)
     {
         var ext = Path.GetExtension(suggestedName).TrimStart('.');
-        var file = await owner.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+        if (TopLevel.GetTopLevel(owner) is not { } top) return;
+        var file = await top.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
         {
             Title = "Export", SuggestedFileName = suggestedName, DefaultExtension = ext,
             FileTypeChoices = [new FilePickerFileType(ext.ToUpperInvariant()) { Patterns = ["*." + ext] }],

@@ -15,18 +15,14 @@ using IPMaster.Infrastructure.Tools;
 namespace IPMaster.Desktop.Views;
 
 /// <summary>Tools → SNMP Tester / MIB Browser (D-080). Read-only: GET, GETNEXT, GETBULK, WALK, BULKWALK; there is no SET.</summary>
-internal sealed class SnmpTesterWindow : Window
+internal sealed class SnmpTesterView : UserControl, IDisposable
 {
+    private Action? _dispose;
+
     private static readonly string[] Operations = ["GET", "GETNEXT", "GETBULK", "WALK", "BULKWALK"];
 
-    public SnmpTesterWindow(string? target = null)
+    public SnmpTesterView(string? target = null)
     {
-        Title = "SNMP Tester";
-        Width = 1100;
-        Height = 680;
-        MinWidth = 640;
-        MinHeight = 400;
-        WindowStartupLocation = WindowStartupLocation.CenterOwner;
         var status = ToolKit.StatusLine();
         var runner = new ToolRunner(status);
         var rows = new ObservableCollection<SnmpTestRow>();
@@ -178,6 +174,9 @@ internal sealed class SnmpTesterWindow : Window
         Grid.SetColumn(right, 2);
         split.Children.Add(right);
         Content = Ui.Layout(inputs, split, status);
-        Closed += (_, _) => runner.Dispose();
+        _dispose = runner.Dispose; // the tabbed window disposes its tabs when it closes
     }
+
+    /// <summary>Cancels the running operation (the window closed).</summary>
+    public void Dispose() => _dispose?.Invoke();
 }
