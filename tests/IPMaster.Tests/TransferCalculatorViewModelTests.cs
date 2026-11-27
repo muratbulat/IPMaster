@@ -9,13 +9,13 @@ public class TransferCalculatorViewModelTests
     private static TransferCalculatorViewModel Vm() => new(CultureInfo.InvariantCulture);
 
     [Theory]
-    [InlineData("1", "GB", "100", "Mbps", "1 min 20 sec")]    // 80 s
-    [InlineData("10", "GB", "100", "Mbps", "13 min 20 sec")]  // 800 s
-    [InlineData("1", "GB", "1", "Gbps", "8 sec")]
-    [InlineData("1", "GB", "100", "MB/s", "10 sec")]
-    [InlineData("500", "KB", "8", "kbps", "8 min 20 sec")]    // 500,000 B × 8 ÷ 8,000 b/s = 500 s
-    [InlineData("1", "PB", "25", "Gbps", "3 days 16 h 53 min")]
-    [InlineData("2", "TB", "1", "GB/s", "33 min 20 sec")]
+    [InlineData("1", "GB", "100", "Mbps", "1m 20s")]    // 80 s
+    [InlineData("10", "GB", "100", "Mbps", "13m 20s")]  // 800 s
+    [InlineData("1", "GB", "1", "Gbps", "8 seconds")]
+    [InlineData("1", "GB", "100", "MB/s", "10 seconds")]
+    [InlineData("500", "KB", "8", "kbps", "8m 20s")]    // 500,000 B × 8 ÷ 8,000 b/s = 500 s
+    [InlineData("1", "PB", "25", "Gbps", "3d 17h")]    // 320,000 s = 88.9 h
+    [InlineData("2", "TB", "1", "GB/s", "33m 20s")]
     public void Results_use_decimal_units_and_keep_bits_and_bytes_apart(string size, string sizeUnit, string speed, string speedUnit, string expected)
     {
         var vm = Vm();
@@ -31,7 +31,7 @@ public class TransferCalculatorViewModelTests
     public void Defaults_and_the_bits_bytes_note()
     {
         var vm = Vm();
-        Assert.Equal("13 min 20 sec", vm.Result);
+        Assert.Equal("13m 20s", vm.Result);
         Assert.Equal("100 Mbps = 12.5 MB/s", vm.SpeedNote);
         vm.SpeedUnit = "MB/s";
         Assert.Equal("100 MB/s = 800 Mbps", vm.SpeedNote);
@@ -43,15 +43,16 @@ public class TransferCalculatorViewModelTests
         var vm = Vm();
         vm.SizeUnit = "TB"; // 10 TB at 100 Mbps
         Assert.Equal("10", vm.SizeText);
-        Assert.Equal("9 days 6 h 13 min", vm.Result);
+        Assert.Equal("9d 6h", vm.Result); // 800,000 s = 222.2 h
     }
 
     [Theory]
     [InlineData("", "100", "File size: Enter a number.")]
+    [InlineData("0", "100", "File size: must be more than zero.")]
     [InlineData("-1", "100", "File size: The value cannot be negative.")]
     [InlineData("abc", "100", "File size: 'abc' is not a number.")]
-    [InlineData("10", "0", "Connection speed: must be more than zero.")]
-    [InlineData("10", "-5", "Connection speed: The value cannot be negative.")]
+    [InlineData("10", "0", "Transfer speed: must be more than zero.")]
+    [InlineData("10", "-5", "Transfer speed: The value cannot be negative.")]
     public void Invalid_inputs_explain_and_clear_the_result(string size, string speed, string error)
     {
         var vm = Vm();
@@ -68,12 +69,12 @@ public class TransferCalculatorViewModelTests
         var vm = Vm();
         vm.ApplyPreset("1 Gbps");
         Assert.Equal(("1", "Gbps"), (vm.SpeedText, vm.SpeedUnit));
-        Assert.Equal("1 min 20 sec", vm.Result);
-        Assert.Equal("10 GB at 1 Gbps: 1 min 20 sec", vm.CopyText());
+        Assert.Equal("1m 20s", vm.Result);
+        Assert.Equal("10 GB at 1 Gbps, 100 % efficiency: 1m 20s (80 s; throughput 125 MB/s)", vm.CopyText());
         vm.SizeText = "3";
         vm.Reset();
         Assert.Equal(("10", "GB", "100", "Mbps"), (vm.SizeText, vm.SizeUnit, vm.SpeedText, vm.SpeedUnit));
-        Assert.Equal("13 min 20 sec", vm.Result);
+        Assert.Equal("13m 20s", vm.Result);
     }
 
     [Fact]
@@ -81,7 +82,7 @@ public class TransferCalculatorViewModelTests
     {
         var vm = new TransferCalculatorViewModel(CultureInfo.GetCultureInfo("de-DE"));
         vm.SizeText = "1,5"; // 1.5 GB at 100 Mbps = 120 s
-        Assert.Equal("2 min 0 sec", vm.Result);
+        Assert.Equal("2m 0s", vm.Result);
         Assert.Equal("100 Mbps = 12,5 MB/s", vm.SpeedNote);
     }
 }
