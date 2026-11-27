@@ -32,5 +32,6 @@
     <ProjectReference Include="..\IPMaster.Infrastructure\IPMaster.Infrastructure.csproj" />
     <ProjectReference Include="..\IPMaster.Cli\IPMaster.Cli.csproj" />
     <InternalsVisibleTo Include="IPMaster.Tests" />
+    <InternalsVisibleTo Include="ipmaster-bench" />
   </ItemGroup>
 </Project>

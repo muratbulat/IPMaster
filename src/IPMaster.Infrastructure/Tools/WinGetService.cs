@@ -30,6 +30,12 @@ public interface IWinGetService
     /// <summary>Installs one search hit by exact id and source; same rules as <see cref="UpgradeAsync"/>.</summary>
     Task<int?> InstallAsync(WinGetSearchHit hit, bool acceptAgreements, Action<string> progress, CancellationToken ct);
 
+    /// <summary>
+    /// An installer started here outlived <see cref="WinGetService.UpgradeTimeout"/> and is still running. It is never
+    /// killed; no new install or update starts until it ends (overlapping installers fail or confuse the result).
+    /// </summary>
+    bool InstallerRunning { get; }
+
     /// <summary>Catalog search (<c>winget search</c>), at most <see cref="WinGet.SearchLimit"/> hits.</summary>
     Task<WinGetSearchResult> SearchAsync(string query, CancellationToken ct);
 
@@ -133,17 +139,35 @@ public sealed class WinGetService : IWinGetService
         return RunInstallerAsync(WinGet.InstallArguments(hit, acceptAgreements), progress);
     }
 
-    /// <summary>Runs an installing command to the end (never killed); null when waiting stopped after <see cref="UpgradeTimeout"/>.</summary>
-    private static async Task<int?> RunInstallerAsync(IReadOnlyList<string> args, Action<string> progress)
+    private volatile Process? _unfinished;
+
+    public bool InstallerRunning
     {
+        get
+        {
+            var p = _unfinished;
+            if (p is null) return false;
+            if (!p.HasExited) return true;
+            _unfinished = null;
+            p.Dispose();
+            return false;
+        }
+    }
+
+    /// <summary>Runs an installing command to the end (never killed); null when waiting stopped after <see cref="UpgradeTimeout"/>.</summary>
+    private async Task<int?> RunInstallerAsync(IReadOnlyList<string> args, Action<string> progress)
+    {
+        if (InstallerRunning) throw new InvalidOperationException(WinGet.StillRunning);
         var psi = Start(args);
-        using var p = new Process { StartInfo = psi };
+        var p = new Process { StartInfo = psi };
+        var left = false;
         try
         {
             p.Start();
         }
         catch (Win32Exception ex)
         {
+            p.Dispose();
             throw new InvalidOperationException("WinGet is unavailable: " + ex.Message, ex);
         }
 
@@ -179,7 +203,14 @@ public sealed class WinGetService : IWinGetService
         }
         catch (OperationCanceledException)
         {
-            return null; // still running: the installer is left alone
+            // still running: the installer is left alone, and remembered so nothing new starts beside it
+            _unfinished = p;
+            left = true;
+            return null;
+        }
+        finally
+        {
+            if (!left) p.Dispose();
         }
     }
 

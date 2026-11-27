@@ -102,6 +102,38 @@ public class ResultsViewTests
     }
 
     [Fact]
+    public void Expanded_count_gates_the_incremental_insert_and_follows_collapse_and_remove()
+    {
+        var v = View();
+        v.Upsert(RichSamples.Full("10.0.0.2") with { Revision = 1 }, false); // has shares: auto-expanded
+        v.Rebuild();
+        v.Upsert(D("10.0.0.1"), false);
+        Assert.True(v.IsDirty); // an expanded node: rows no longer map 1:1 to devices
+        v.ExpandAll(false);
+        v.Upsert(D("10.0.0.3"), false);
+        Assert.False(v.IsDirty); // collapsed: the cheap path again
+        v.ExpandAll(true);
+        v.Remove([v.Find(v.Rows[1].Result.Key)!]); // remove the expanded node
+        v.Rebuild();
+        v.Upsert(D("10.0.0.4"), false);
+        Assert.False(v.IsDirty);
+        Assert.Equal(["10.0.0.1", "10.0.0.3", "10.0.0.4"], Ips(v));
+    }
+
+    [Fact]
+    public void Auto_fit_picks_the_three_longest_texts_in_one_pass()
+    {
+        var v = View();
+        foreach (var (ip, host) in new[] { ("10.0.0.1", "a"), ("10.0.0.2", "cccc"), ("10.0.0.3", "bb"), ("10.0.0.4", "eeeeee"), ("10.0.0.5", "ddddd"), ("10.0.0.6", "") })
+        {
+            v.Upsert(D(ip, host), false);
+        }
+
+        Assert.Equal(["eeeeee", "ddddd", "cccc"], IPMaster.Desktop.Views.MainWindow.LongestThree(v.Rows, "hostName"));
+        Assert.Empty(IPMaster.Desktop.Views.MainWindow.LongestThree([], "hostName"));
+    }
+
+    [Fact]
     public void Repeated_values_fold_and_hide()
     {
         var v = View();

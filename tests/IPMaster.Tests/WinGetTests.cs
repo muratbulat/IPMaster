@@ -233,6 +233,17 @@ internal sealed class FakeWinGet : IWinGetService
 
     public bool IsSupported => true;
 
+    /// <summary>Ids whose installer outlives the wait: the call returns null and the installer counts as still running.</summary>
+    public readonly HashSet<string> TimesOut = new(StringComparer.OrdinalIgnoreCase);
+
+    public bool InstallerRunning { get; set; }
+
+    private int? TimedOut()
+    {
+        InstallerRunning = true;
+        return null;
+    }
+
     public IReadOnlyList<WinGetPackage> Packages { get; set; } = WinGet.ParseList(WinGetParserTests.List, new HashSet<string> { "Northwind.Pinned" });
 
     public Task<WinGetInfo> DetectAsync(CancellationToken ct) => Task.FromResult(Available ? new WinGetInfo(true, "v1.29.380", "") : new WinGetInfo(false, "", "winget.exe was not found."));
@@ -245,6 +256,7 @@ internal sealed class FakeWinGet : IWinGetService
         Upgraded.Add(package.Id);
         OnUpgrade?.Invoke(package.Id);
         progress("Starting package install...");
+        if (TimesOut.Contains(package.Id)) return Task.FromResult(TimedOut());
         return Task.FromResult<int?>(ExitCodes.GetValueOrDefault(package.Id));
     }
 
@@ -260,6 +272,7 @@ internal sealed class FakeWinGet : IWinGetService
         ct.ThrowIfCancellationRequested();
         Installed.Add(hit.Id);
         progress("Starting package install...");
+        if (TimesOut.Contains(hit.Id)) return Task.FromResult(TimedOut());
         return Task.FromResult<int?>(ExitCodes.GetValueOrDefault(hit.Id));
     }
 
@@ -380,6 +393,33 @@ public class WinGetWindowTests
             Assert.Equal(WinGetStatus.Updated, w.AllRows.Single(r => r.Id == "A.One").State);
             Assert.Equal(WinGetStatus.UpdateAvailable, w.AllRows.Single(r => r.Id == "B.Two").State);
             Assert.Contains("not started (cancelled)", Describe(w), StringComparison.Ordinal);
+        }
+        finally
+        {
+            w.Close();
+        }
+    });
+
+    [Fact]
+    public Task Installer_still_running_after_the_wait_stops_the_queue_and_blocks_new_runs() => HeadlessUi.RunAsync(async () =>
+    {
+        var fake = new FakeWinGet { Packages = [Pkg("A.One"), Pkg("B.Two"), Pkg("C.Three")] };
+        fake.TimesOut.Add("A.One");
+        var w = await OpenAsync(fake);
+        try
+        {
+            await w.RunUpdatesAsync(w.AllRows.ToList(), accept: false);
+            UiDesignSystemTests.Dispatch();
+            Assert.Equal(["A.One"], fake.Upgraded); // B and C would have run beside the unfinished installer
+            Assert.Equal(WinGetStatus.Unverified, w.AllRows.Single(r => r.Id == "A.One").State);
+            Assert.Contains("2 not started (an installer is still running)", Describe(w), StringComparison.Ordinal);
+            await w.RunUpdatesAsync(w.AllRows.Where(r => r.Id != "A.One").ToList(), accept: false);
+            UiDesignSystemTests.Dispatch();
+            Assert.Equal(["A.One"], fake.Upgraded); // nothing new starts while it runs
+            Assert.Contains(WinGet.StillRunning, Describe(w), StringComparison.Ordinal);
+            fake.InstallerRunning = false; // it ended
+            await w.RunUpdatesAsync(w.AllRows.Where(r => r.Id == "B.Two").ToList(), accept: false);
+            Assert.Equal(["A.One", "B.Two"], fake.Upgraded);
         }
         finally
         {

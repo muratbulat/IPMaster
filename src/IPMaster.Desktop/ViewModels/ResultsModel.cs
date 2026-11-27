@@ -24,8 +24,12 @@ public sealed class RangeObservableCollection<T> : ObservableCollection<T>
 /// <summary>One device and its share child rows.</summary>
 public sealed class DeviceNode
 {
+    private readonly ResultsView _owner;
+    private bool _expanded;
+
     public DeviceNode(DeviceResult result, ResultsView owner)
     {
+        _owner = owner;
         Result = result;
         Row = new ResultRow(this, null, owner);
     }
@@ -36,7 +40,16 @@ public sealed class DeviceNode
 
     public List<ResultRow> ShareRows { get; } = [];
 
-    public bool Expanded { get; set; }
+    public bool Expanded
+    {
+        get => _expanded;
+        set
+        {
+            if (_expanded == value) return;
+            _expanded = value;
+            _owner.ExpandedCount += value ? 1 : -1; // lets Upsert skip an O(n) scan per insert
+        }
+    }
 
     public bool UserHighlighted { get; set; }
 
@@ -230,16 +243,24 @@ public sealed class ResultsView
 
     public DeviceNode? Find(AddressKey key) => _nodes.GetValueOrDefault(key);
 
+    /// <summary>Nodes in this view with Expanded set (kept by <see cref="DeviceNode.Expanded"/>).</summary>
+    internal int ExpandedCount { get; set; }
+
     public void Clear()
     {
         _nodes.Clear();
+        ExpandedCount = 0;
         Rows.ReplaceAll([]);
         IsDirty = false;
     }
 
     public void Remove(IEnumerable<DeviceNode> nodes)
     {
-        foreach (var n in nodes.ToList()) _nodes.Remove(n.Result.Key);
+        foreach (var n in nodes.ToList())
+        {
+            if (_nodes.Remove(n.Result.Key)) n.Expanded = false;
+        }
+
         IsDirty = true;
     }
 
@@ -265,7 +286,7 @@ public sealed class ResultsView
         _nodes[result.Key] = node;
         RebuildShareRows(node);
         Evaluate(node);
-        if (SortColumn is null && !HasHidingFilter && node.ShareRows.Count == 0 && !_nodes.Values.Any(n => n.Expanded))
+        if (SortColumn is null && !HasHidingFilter && node.ShareRows.Count == 0 && ExpandedCount == 0)
         {
             // Incremental insert in address order (no expanded nodes: rows map 1:1 to devices).
             var lo = 0;
@@ -332,7 +353,7 @@ public sealed class ResultsView
             if (visible) list.Add(n);
         }
 
-        list.Sort(Compare);
+        Sort(list);
         var rows = new List<ResultRow>(list.Count);
         foreach (var n in list)
         {
@@ -351,14 +372,27 @@ public sealed class ResultsView
         IsDirty = false;
     }
 
-    private int Compare(DeviceNode a, DeviceNode b)
+    /// <summary>Sorts by the sort column, then address. Each node's value is rendered and classified once, not per comparison.</summary>
+    private void Sort(List<DeviceNode> list)
     {
-        if (SortColumn is not null && Columns.FirstOrDefault(c => c.Id == SortColumn) is { } col)
+        if (SortColumn is null || Columns.FirstOrDefault(c => c.Id == SortColumn) is not { } col)
         {
-            var va = col.SortValue(a.Result, Format);
-            var vb = col.SortValue(b.Result, Format);
-            if (va is string ea && ValueOrder.IsEmpty(ea)) va = null; // a rendered "no value" stays last in both directions
-            if (vb is string eb && ValueOrder.IsEmpty(eb)) vb = null;
+            list.Sort(static (a, b) => a.Result.Key.CompareTo(b.Result.Key));
+            return;
+        }
+
+        var culture = System.Globalization.CultureInfo.CurrentCulture;
+        var keyed = new (DeviceNode Node, IComparable? Value, ValueOrder.Key Text)[list.Count];
+        for (var i = 0; i < keyed.Length; i++)
+        {
+            var v = col.SortValue(list[i].Result, Format);
+            var text = v is string s ? ValueOrder.KeyOf(s, culture) : default;
+            keyed[i] = (list[i], v is string && text.IsEmpty ? null : v, text); // a rendered "no value" stays last in both directions
+        }
+
+        Array.Sort(keyed, (a, b) =>
+        {
+            var (va, vb) = (a.Value, b.Value);
             int c;
             if (va is null && vb is null) c = 0;
             else if (va is null) c = 1; // empty values last in either direction
@@ -366,16 +400,15 @@ public sealed class ResultsView
             else
             {
                 // text columns: natural, address-aware order (host2 before host10, IPv6 lists by address)
-                c = va is string sa && vb is string sb
-                    ? ValueOrder.Compare(sa, sb, CaseInsensitiveSort)
+                c = va is string && vb is string
+                    ? ValueOrder.Compare(a.Text, b.Text, CaseInsensitiveSort, culture)
                     : va.GetType() == vb.GetType() ? va.CompareTo(vb) : string.CompareOrdinal(va.ToString(), vb.ToString());
                 if (SortDescending) c = -c;
             }
 
-            if (c != 0) return c;
-        }
-
-        return a.Result.Key.CompareTo(b.Result.Key);
+            return c != 0 ? c : a.Node.Result.Key.CompareTo(b.Node.Result.Key);
+        });
+        for (var i = 0; i < keyed.Length; i++) list[i] = keyed[i].Node;
     }
 
     private void ApplyRepeatedValues(List<ResultRow> rows)

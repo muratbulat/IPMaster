@@ -137,6 +137,7 @@ public partial class MainWindow : Window, IDialogs
         if (Vm is null) return;
         var layout = Vm.Settings.View.Columns.ToDictionary(c => c.Id, StringComparer.OrdinalIgnoreCase);
         Grid.Columns.Clear();
+        _fitted.Clear();
         foreach (var col in Vm.DisplayColumns)
         {
             var width = layout.TryGetValue(col.Id, out var l) && l.Width > 20 ? new DataGridLength(l.Width) : new DataGridLength(DefaultWidth(col.Id));
@@ -205,12 +206,34 @@ public partial class MainWindow : Window, IDialogs
         foreach (var gc in Grid.Columns)
         {
             if (gc.Tag is not string id) continue;
+            // a width that is no longer the one fitted here was dragged by the user: keep it (until the columns are rebuilt)
+            if (_fitted.TryGetValue(gc, out var fitted) && Math.Abs(gc.Width.Value - fitted) > 0.5) continue;
             var key = Vm.Results.KeyFor(id);
-            var longest = rows.Select(r => r[key] ?? "").Where(s => s.Length > 0).OrderByDescending(s => s.Length).Take(3).Select(Measure).DefaultIfEmpty(0).Max();
+            var longest = LongestThree(rows, key).Select(Measure).DefaultIfEmpty(0).Max();
             var extra = id switch { "ip" => 64, "deviceType" => 44, _ => 28 }; // expander + status dot, category icon, cell padding
             var header = Measure(gc.Header?.ToString() ?? "") + 36; // header padding and sort arrow
-            gc.Width = new DataGridLength(Math.Clamp(Math.Max(longest + extra, header), 48, 700));
+            var width = Math.Clamp(Math.Max(longest + extra, header), 48, 700);
+            gc.Width = new DataGridLength(width);
+            _fitted[gc] = width;
         }
+    }
+
+    private readonly Dictionary<DataGridColumn, double> _fitted = [];
+
+    /// <summary>The three longest non-empty cell texts in one pass (no sort of every row on each refit).</summary>
+    internal static List<string> LongestThree(IEnumerable<ResultRow> rows, string key)
+    {
+        var top = new List<string>(4);
+        foreach (var r in rows)
+        {
+            var s = r[key] ?? "";
+            if (s.Length == 0 || (top.Count == 3 && s.Length <= top[2].Length)) continue;
+            var i = top.FindIndex(t => s.Length > t.Length);
+            top.Insert(i < 0 ? top.Count : i, s);
+            if (top.Count > 3) top.RemoveAt(3);
+        }
+
+        return top;
     }
 
     private static double DefaultWidth(string id) => id switch

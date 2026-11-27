@@ -12,7 +12,7 @@ provides a desktop application and a command line.
 - Network tools: DNS diagnostics and bulk audit, TCP, TLS, HTTP/API, LDAP, NTP, SMTP, syslog receiver, SNMP tester and
   interface monitor, LLDP/CDP topology, path and MTU analysis, iPerf throughput tests (with an installed iperf3 or iperf2), IP calculator, download/transfer calculator, device IP
   discovery with an isolated DHCP server, a Wi-Fi analyzer (Windows) and a KMS activation manager (Windows: Windows and Office
-  licence status, official KMS client setup keys, confirmed activation against your own KMS host), a WinGet update manager
+  licence status, official KMS client setup keys, confirmed activation against your own KMS host), a WinGet manager (updates and new installs)
   (Windows) and a read-only Group Policy viewer (Windows).
 - Exports: CSV, TXT, HTML, XML, JSON, SQLite; light and dark themes; keyboard shortcuts and a command navigator.
 
@@ -77,10 +77,10 @@ when it is missing; it never downloads anything. Settings and history stay in `%
 on uninstall. `SHA256SUMS.txt` lists the checksums of all packages. Built with WiX Toolset v5 (MS-RL).
 
 ```powershell
-msiexec /i IPMaster-0.8.0-win-x64-setup-framework-dependent.msi                         # interactive
-msiexec /i IPMaster-0.8.0-win-x64-setup-framework-dependent.msi /qn /norestart          # silent
-msiexec /i IPMaster-0.8.0-win-x64-setup-framework-dependent.msi /qn DESKTOPSHORTCUT=1   # with a desktop shortcut
-msiexec /x IPMaster-0.8.0-win-x64-setup-framework-dependent.msi /qn /norestart          # silent uninstall
+msiexec /i IPMaster-0.9.0-win-x64-setup-framework-dependent.msi                         # interactive
+msiexec /i IPMaster-0.9.0-win-x64-setup-framework-dependent.msi /qn /norestart          # silent
+msiexec /i IPMaster-0.9.0-win-x64-setup-framework-dependent.msi /qn DESKTOPSHORTCUT=1   # with a desktop shortcut
+msiexec /x IPMaster-0.9.0-win-x64-setup-framework-dependent.msi /qn /norestart          # silent uninstall
 ```
 
 A newer installed version is never replaced by an older MSI; uninstall it first.

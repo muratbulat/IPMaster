@@ -54,6 +54,21 @@ Console.WriteLine($"elapsed: {sw.Elapsed.TotalSeconds:0.00} s  throughput: {summ
 Console.WriteLine($"peak active workers: {maxWorkers} (limit {concurrency})");
 Console.WriteLine($"peak working set: {peakWs / 1048576.0:0.0} MB  managed allocations during scan: {alloc / 1048576.0:0.0} MB");
 
+// Stop latency: a second scan of the same plan, stopped after 2 s, timed until every worker has finished
+using (var stopped = engine.Start(new ScanRequest
+{
+    Plan = plan,
+    ExactCount = count,
+    Settings = new ScanSettings { MaxConcurrency = concurrency, PingTimeoutMs = timeoutMs, PingAttempts = 1, DnsTimeoutMs = 1000, DeviceDeadlineSeconds = 10 },
+}, new Sink()))
+{
+    await Task.WhenAny(stopped.Completion, Task.Delay(2000));
+    sw.Restart();
+    stopped.Stop();
+    var s2 = await stopped.Completion;
+    Console.WriteLine($"stop after 2 s: {s2.State} in {sw.ElapsedMilliseconds} ms ({s2.Processed:N0} processed)");
+}
+
 // Lazy enumeration check on a 16M-address plan
 var big = (await TargetPlanBuilder.BuildAsync([Parse("2001:db8::/104")], new PlanOptions { Confirmed = true }, null)).Plan;
 var before = GC.GetAllocatedBytesForCurrentThread();

@@ -55,6 +55,9 @@ public static class WinGet
 {
     public const string MicrosoftLink = "https://learn.microsoft.com/windows/package-manager/winget/";
 
+    /// <summary>An installer outlived the 60-minute wait: nothing new starts until it ends (D-113).</summary>
+    public const string StillRunning = "An earlier installer is still running. Wait until it ends, then select Refresh.";
+
     public static string StatusText(WinGetStatus s) => s switch
     {
         WinGetStatus.Current => "Current",

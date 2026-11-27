@@ -172,6 +172,13 @@ internal sealed class WinGetInstallWindow : Window
     /// <summary>The confirmed queue: one package at a time; a cancel stops before the next package, never inside an installer.</summary>
     internal async Task RunInstallsAsync(IReadOnlyList<Hit> targets, bool accept)
     {
+        if (_service.InstallerRunning)
+        {
+            _status.Text = WinGet.StillRunning;
+            return;
+        }
+
+        var stillRunning = false;
         _cts = new CancellationTokenSource();
         SetBusy(true);
         var results = new List<WinGetUpdateResult>();
@@ -220,6 +227,11 @@ internal sealed class WinGetInstallWindow : Window
                 InstalledAny |= result.Status is WinGetStatus.Installed or WinGetStatus.Unverified;
                 Replace(Find(row), row with { State = result.Status, Note = result.Message, InstalledVersion = result.Status == WinGetStatus.Installed ? result.ToVersion ?? "" : "" });
                 _log($"{row.Id}: {result.Message} (exit {WinGet.Hex(result.ExitCode)})");
+                if (code is null)
+                {
+                    stillRunning = true; // the next installer would run beside this one
+                    break;
+                }
             }
         }
         finally
@@ -228,8 +240,9 @@ internal sealed class WinGetInstallWindow : Window
             var ok = results.Count(r => r.Status == WinGetStatus.Installed);
             var failed = results.Count(r => r.Status == WinGetStatus.Failed);
             var unverified = results.Count - ok - failed;
-            _current.Text = $"Done: {ok} installed, {failed} failed, {unverified} not verified{(notStarted > 0 ? $", {notStarted} not started (cancelled)" : "")}." + (results.Any(r => r.RestartRequired) ? " Restart required." : "");
-            _status.Text = failed > 0 ? "Some installs failed. Hover the Status column or see the log." : notStarted > 0 ? "Install cancelled." : "Installs finished.";
+            var why = stillRunning ? "an installer is still running" : "cancelled";
+            _current.Text = $"Done: {ok} installed, {failed} failed, {unverified} not verified{(notStarted > 0 ? $", {notStarted} not started ({why})" : "")}." + (results.Any(r => r.RestartRequired) ? " Restart required." : "");
+            _status.Text = stillRunning ? WinGet.StillRunning : failed > 0 ? "Some installs failed. Hover the Status column or see the log." : notStarted > 0 ? "Install cancelled." : "Installs finished.";
             Styling.Theme.SetState(_current, failed > 0 ? Styling.Theme.Classes.Error : notStarted > 0 || unverified > 0 ? Styling.Theme.Classes.Warning : Styling.Theme.Classes.Success);
             _cts.Dispose();
             _cts = null;

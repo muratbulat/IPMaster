@@ -13,7 +13,7 @@ namespace IPMaster.Core.Results;
 /// </summary>
 public static partial class ValueOrder
 {
-    private enum Kind
+    internal enum Kind
     {
         Address,
         Number,
@@ -48,8 +48,29 @@ public static partial class ValueOrder
     public static int Compare(string? a, string? b, bool ignoreCase = true, CultureInfo? culture = null)
     {
         culture ??= CultureInfo.CurrentCulture;
-        var (ka, va) = Classify(a, culture);
-        var (kb, vb) = Classify(b, culture);
+        return Compare(KeyOf(a, culture), KeyOf(b, culture), ignoreCase, culture);
+    }
+
+    /// <summary>A value classified once, for sorting many rows: a sort compares each value about 2·log N times.</summary>
+    public readonly struct Key
+    {
+        internal Key((Kind Kind, object? Value) k) => (Kind, Value) = k;
+
+        internal Kind Kind { get; }
+
+        internal object? Value { get; }
+
+        public bool IsEmpty => Kind == Kind.Empty;
+    }
+
+    public static Key KeyOf(string? text, CultureInfo? culture = null) => new(Classify(text, culture ?? CultureInfo.CurrentCulture));
+
+    /// <summary>Same order as <see cref="Compare(string?, string?, bool, CultureInfo?)"/> on precomputed keys.</summary>
+    public static int Compare(Key a, Key b, bool ignoreCase = true, CultureInfo? culture = null)
+    {
+        culture ??= CultureInfo.CurrentCulture;
+        var (ka, va) = (a.Kind, a.Value);
+        var (kb, vb) = (b.Kind, b.Value);
         if (ka != kb) return ka.CompareTo(kb);
         return ka switch
         {

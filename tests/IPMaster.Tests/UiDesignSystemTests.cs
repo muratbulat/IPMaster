@@ -564,10 +564,17 @@ public class WindowFitTests
             window.Show();
             UiDesignSystemTests.Dispatch();
             var problems = Problems(window, name + " (default)");
+            var defaultSize = window.ClientSize;
             window.Width = window.MinWidth > 0 ? window.MinWidth : 400;
             window.Height = window.MinHeight > 0 ? window.MinHeight : 300;
             UiDesignSystemTests.Dispatch();
             problems.AddRange(Problems(window, name + " (minimum)"));
+            // 1366×768 at 125 % with a 40 px taskbar: the size ScreenFit leaves (D-113)
+            var (w, h, minW, minH) = IPMaster.Desktop.Platform.ScreenFit.Fit(defaultSize.Width, defaultSize.Height, window.MinWidth, window.MinHeight, new Size(1366 / 1.25, (768 - 40) / 1.25), new Size(16, 40));
+            (window.MinWidth, window.MinHeight) = (minW, minH);
+            (window.Width, window.Height) = (w, h);
+            UiDesignSystemTests.Dispatch();
+            problems.AddRange(Problems(window, name + $" (small screen {w:0}×{h:0})"));
             Assert.True(problems.Count == 0, string.Join('\n', problems));
         }
         finally

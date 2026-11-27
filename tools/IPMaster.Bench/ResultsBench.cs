@@ -68,6 +68,20 @@ internal static class ResultsBench
 
         Console.WriteLine($"  format every cell ({view.Rows.Count * columns.Length:N0} cells, {chars:N0} chars): {sw.ElapsedMilliseconds} ms");
 
+        // column auto-fit: pick the three longest texts per column (cells already formatted above; text measuring not included)
+        sw.Restart();
+        foreach (var c in columns) _ = view.Rows.Select(r => r[view.KeyFor(c.Id)]).Where(s => s.Length > 0).OrderByDescending(s => s.Length).Take(3).ToList();
+        Console.WriteLine($"  auto-fit selection, previous LINQ sort (reference): {sw.ElapsedMilliseconds} ms");
+        sw.Restart();
+        foreach (var c in columns) _ = IPMaster.Desktop.Views.MainWindow.LongestThree(view.Rows, view.KeyFor(c.Id));
+        Console.WriteLine($"  auto-fit selection, one pass (MainWindow.LongestThree): {sw.ElapsedMilliseconds} ms");
+
+        // incremental insert path (default view); before D-113 every insert also scanned all nodes for an expanded one
+        var view2 = new ResultsView { Columns = columns };
+        sw.Restart();
+        foreach (var d in devices) view2.Upsert(d, false);
+        Console.WriteLine($"  insert {n:N0} in address order, incremental path: {sw.ElapsedMilliseconds} ms ({view2.Rows.Count:N0} rows)");
+
         if (xmlPath is not null)
         {
             sw.Restart();

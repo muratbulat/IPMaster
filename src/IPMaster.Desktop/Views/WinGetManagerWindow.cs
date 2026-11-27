@@ -272,6 +272,13 @@ internal sealed class WinGetManagerWindow : Window
     /// <summary>The confirmed queue: one package at a time; a cancel stops before the next package, never inside an installer.</summary>
     internal async Task RunUpdatesAsync(IReadOnlyList<Row> targets, bool accept)
     {
+        if (_service.InstallerRunning)
+        {
+            _status.Text = WinGet.StillRunning;
+            return;
+        }
+
+        var stillRunning = false;
         _cts = new CancellationTokenSource();
         SetBusy(true);
         _progress.IsVisible = true;
@@ -327,6 +334,11 @@ internal sealed class WinGetManagerWindow : Window
                 Replace(Current(row), row with { P = after is null ? row.P : after with { IsPinned = row.P.IsPinned }, Override = result.Status, Note = msg });
                 Log($"{row.Id}: {msg} (exit {WinGet.Hex(result.ExitCode)})");
                 _progress.Value = i + 1;
+                if (code is null)
+                {
+                    stillRunning = true; // the next installer would run beside this one
+                    break;
+                }
             }
         }
         finally
@@ -335,8 +347,9 @@ internal sealed class WinGetManagerWindow : Window
             var ok = results.Count(r => r.Status == WinGetStatus.Updated);
             var failed = results.Count(r => r.Status == WinGetStatus.Failed);
             var unverified = results.Count - ok - failed;
-            _current.Text = $"Done: {ok} updated, {failed} failed, {unverified} not verified{(skipped > 0 ? $", {skipped} not started (cancelled)" : "")}." + (results.Any(r => r.RestartRequired) ? " Restart required." : "");
-            _status.Text = failed > 0 ? "Some updates failed. See the Status column or the log." : skipped > 0 ? "Update cancelled." : "Updates finished.";
+            var why = stillRunning ? "an installer is still running" : "cancelled";
+            _current.Text = $"Done: {ok} updated, {failed} failed, {unverified} not verified{(skipped > 0 ? $", {skipped} not started ({why})" : "")}." + (results.Any(r => r.RestartRequired) ? " Restart required." : "");
+            _status.Text = stillRunning ? WinGet.StillRunning : failed > 0 ? "Some updates failed. See the Status column or the log." : skipped > 0 ? "Update cancelled." : "Updates finished.";
             Styling.Theme.SetState(_current, failed > 0 ? Styling.Theme.Classes.Error : skipped > 0 || unverified > 0 ? Styling.Theme.Classes.Warning : Styling.Theme.Classes.Success);
             _progress.IsVisible = false;
             _cts?.Dispose();

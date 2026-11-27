@@ -27,6 +27,7 @@ public partial class App : Application
         AvaloniaXamlLoader.Load(this);
         Styling.TrimmedTextTips.Register(); // full values for shortened table cells
         Styling.SmartSort.Register(); // header-click sorting by value in every grid
+        Platform.ScreenFit.Register(); // no window larger than its screen's working area
     }
 
     public override void OnFrameworkInitializationCompleted()
