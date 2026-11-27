@@ -6,7 +6,8 @@
 .DESCRIPTION
   Output (relative to -Root, default <repo>/artifacts):
     release/<rid>/ and release/<rid>-portable/   the unpacked packages: IPMaster.exe (Windows) or IPMaster (Linux),
-                                                 IPMaster.app (macOS), README.md
+                                                 IPMaster.app (macOS), README.md, LICENSE,
+                                                 THIRD-PARTY-NOTICES.md, licenses/, SOURCE.txt (D-115)
     packages/IPMaster-<version>-<rid>[-portable].zip      Windows
     packages/IPMaster-<version>-<rid>[-portable].tar.gz   Linux and macOS (executables keep mode 0755)
   Single-file (portable: self-contained, ReadyToRun and compressed); native libraries are bundled and extracted at first run where
@@ -59,6 +60,22 @@ $userDataPatterns = @('ipmaster.settings.json*', 'ipmaster.history.db*')
 function Get-UserData([string] $dir) {
     if (-not (Test-Path $dir)) { return @() }
     @(Get-ChildItem $dir -Recurse -File | Where-Object { $n = $_.Name; $userDataPatterns | Where-Object { $n -like $_ } })
+}
+
+# README, the GPL (D-115), third-party notices and SOURCE.txt (the source revision) go into every package and the MSI.
+$commit = try { git -C $repo rev-parse HEAD 2>$null } catch { $null }
+if ($LASTEXITCODE -ne 0 -or -not $commit) { $commit = 'unknown (not built from a git checkout)'; $dirty = 'unknown' }
+else { $dirty = if (git -C $repo status --porcelain) { 'yes' } else { 'no' } }
+function Copy-PackageDocs([string] $dest) {
+    foreach ($f in 'README.md', 'LICENSE', 'THIRD-PARTY-NOTICES.md') { Copy-Item (Join-Path $repo $f) $dest }
+    Copy-Item (Join-Path $repo 'licenses') $dest -Recurse -Force
+    @(
+        "IPMaster $version"
+        'License: GPL-3.0-only (see LICENSE). Copyright (C) 2026 Murat Bulat.'
+        "Source: https://github.com/muratbulat/ipmaster/tree/$commit"
+        "Commit: $commit"
+        "Uncommitted changes in the checkout at build time: $dirty"
+    ) | Set-Content -Encoding utf8NoBOM (Join-Path $dest 'SOURCE.txt')
 }
 
 # .tar.gz with explicit modes: executables 0755, everything else 0644.
@@ -159,7 +176,7 @@ foreach ($fl in $flavours) {
     }
 
     if ($rid -like 'win-*') {
-        Copy-Item (Join-Path $repo 'README.md') $dest
+        Copy-PackageDocs $dest
         if ($buildMsi -and -not $fl.SelfContained) { Build-Msi $rid $dest }
         if (-not $buildArchives) { continue }
         $zip =Join-Path $packages "IPMaster-$version-$rid$suffix.zip"
@@ -197,7 +214,7 @@ foreach ($fl in $flavours) {
         $execs = @('IPMaster')
     }
 
-    Copy-Item (Join-Path $repo 'README.md') $dest
+    Copy-PackageDocs $dest
     $archive = Join-Path $packages "IPMaster-$version-$rid$suffix.tar.gz"
     Write-TarGz $dest "IPMaster-$version-$rid$suffix" $archive $execs
     Write-Host "Release:  $((Resolve-Path $exePath).Path)"

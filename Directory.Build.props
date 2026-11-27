@@ -12,6 +12,10 @@
     <Company>Murat Bulat</Company>
     <Copyright>Copyright © 2026 Murat Bulat</Copyright>
     <Product>IPMaster</Product>
+    <!-- GPL-3.0-only (LICENSE, D-115); the source commit is appended to the informational version (+<sha>) -->
+    <PackageLicenseExpression>GPL-3.0-only</PackageLicenseExpression>
+    <RepositoryUrl>https://github.com/muratbulat/ipmaster</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
     <InvariantGlobalization>false</InvariantGlobalization>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
   </PropertyGroup>

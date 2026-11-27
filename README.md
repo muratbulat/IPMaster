@@ -63,6 +63,8 @@ The packages are written to `artifacts/packages/`: `IPMaster-<version>-<runtime>
 `IPMaster-<version>-<runtime>.zip` (needs the .NET 10 runtime); Linux and macOS use `.tar.gz`. The unpacked releases are
 in `artifacts/release/<runtime>-portable/` and `artifacts/release/<runtime>/`. Unpack and run `IPMaster`; settings are
 stored next to the executable when that folder is writable, otherwise in the user's application-data folder.
+Every package (and the MSI) also contains `LICENSE`, `THIRD-PARTY-NOTICES.md`, `licenses/` and `SOURCE.txt`, which
+names the source commit the package was built from.
 
 ### Windows Installer (MSI)
 
@@ -85,6 +87,35 @@ msiexec /x IPMaster-0.9.0-win-x64-setup-framework-dependent.msi /qn /norestart  
 
 A newer installed version is never replaced by an older MSI; uninstall it first.
 
+## Website
+
+<https://muratbulat.github.io/ipmaster/> is the static site in `website/` (plain HTML, CSS and a small script; no build
+step: the folder is published as is), deployed by `.github/workflows/pages.yml` on pushes to `main` that change it.
+One-time setup: **Settings → Pages → Source: GitHub Actions**. Preview locally with:
+
+```powershell
+python -m http.server 8080 -d website      # then open http://localhost:8080/
+```
+
+Custom domain (planned: `getipmaster.xyz`, not configured yet). With an Actions-deployed site no `CNAME` file is needed:
+verify the domain for the account (Settings → Pages → Verified domains), enter it under **Settings → Pages → Custom
+domain**, create the DNS records listed in GitHub's
+[custom-domain guide](https://docs.github.com/en/pages/configuring-a-custom-domain-for-your-github-pages-site/managing-a-custom-domain-for-your-github-pages-site)
+at the registrar, then tick **Enforce HTTPS** once the certificate is issued. Afterwards update the `canonical` and
+`og:` URLs in `website/index.html` and `website/license/`.
+
 ## License
 
-No license has been published for this project yet. All rights reserved by the author, Murat Bulat.
+Copyright (C) 2026 Murat Bulat.
+
+IPMaster is free software, licensed under the **GNU General Public License version 3 only** (SPDX: `GPL-3.0-only`).
+The full text is in [LICENSE](LICENSE).
+
+- You may use, study and modify IPMaster under the terms of the GPLv3.
+- If you distribute IPMaster or a modified version, you must do so under the GPLv3: keep the copyright and licence
+  notices, mark your changes, and provide the corresponding source code.
+- IPMaster comes with no warranty, to the extent permitted by law (GPLv3 sections 15 and 16).
+- Third-party components keep their own licences: see [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
+
+Distribution and source details: [docs/LICENSING.md](docs/LICENSING.md). The GPL applies to the source in this
+repository from the commit that added `LICENSE`; it does not change the terms of packages published before then.

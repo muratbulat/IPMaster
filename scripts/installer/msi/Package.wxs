@@ -26,7 +26,9 @@
             Message="IPMaster needs the .NET 10 Runtime ($(sys.BUILDARCH)). Install it from https://dotnet.microsoft.com/download/dotnet/10.0 and run this installer again." />
 
     <StandardDirectory Id="ProgramFiles64Folder">
-      <Directory Id="INSTALLFOLDER" Name="IPMaster" />
+      <Directory Id="INSTALLFOLDER" Name="IPMaster">
+        <Directory Id="LICENSESFOLDER" Name="licenses" />
+      </Directory>
     </StandardDirectory>
 
     <Feature Id="Main" Title="IPMaster">
@@ -38,6 +40,28 @@
       </Component>
       <Component Directory="INSTALLFOLDER">
         <File Source="ipmaster.installed" KeyPath="yes" />
+      </Component>
+      <!-- GPL-3.0-only, third-party notices and the source revision (D-115), installed and removed with the app -->
+      <Component Directory="INSTALLFOLDER">
+        <File Source="$(var.PayloadDir)\LICENSE" KeyPath="yes" />
+      </Component>
+      <Component Directory="INSTALLFOLDER">
+        <File Source="$(var.PayloadDir)\THIRD-PARTY-NOTICES.md" KeyPath="yes" />
+      </Component>
+      <Component Directory="INSTALLFOLDER">
+        <File Source="$(var.PayloadDir)\SOURCE.txt" KeyPath="yes" />
+      </Component>
+      <Component Directory="LICENSESFOLDER">
+        <File Source="$(var.PayloadDir)\licenses\Apache-2.0.txt" KeyPath="yes" />
+      </Component>
+      <Component Directory="LICENSESFOLDER">
+        <File Source="$(var.PayloadDir)\licenses\ANGLE-LICENSE.txt" KeyPath="yes" />
+      </Component>
+      <Component Directory="LICENSESFOLDER">
+        <File Source="$(var.PayloadDir)\licenses\SkiaSharp-HarfBuzzSharp-THIRD-PARTY-NOTICES.txt" KeyPath="yes" />
+      </Component>
+      <Component Directory="LICENSESFOLDER">
+        <File Source="$(var.PayloadDir)\licenses\dotnet-runtime-THIRD-PARTY-NOTICES.txt" KeyPath="yes" />
       </Component>
       <!-- shortcut components use an HKCU key path (WiX "create a shortcut" pattern; ICE38/ICE43); it holds only a marker value -->
       <Component Id="StartMenuShortcut" Directory="ProgramMenuFolder">

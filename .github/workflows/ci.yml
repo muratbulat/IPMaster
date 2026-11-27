@@ -61,6 +61,31 @@ jobs:
           global-json-file: global.json
       - run: dotnet format IPMaster.slnx --verify-no-changes --verbosity minimal
 
+  licence:
+    name: Licence (GPL-3.0-only)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      # D-115: LICENSE is the unmodified GNU GPLv3 text (https://www.gnu.org/licenses/gpl-3.0.txt)
+      - name: Check LICENSE, metadata and notices
+        shell: pwsh
+        run: |
+          $hash = (Get-FileHash LICENSE -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($hash -ne '3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986') { throw "LICENSE is not the official GPLv3 text (sha256 $hash)" }
+          $props = ([xml](Get-Content Directory.Build.props)).Project.PropertyGroup
+          $lic = $props.PackageLicenseExpression | Where-Object { $_ } | Select-Object -First 1
+          if ($lic -ne 'GPL-3.0-only') { throw "PackageLicenseExpression is '$lic', expected GPL-3.0-only" }
+          $repoUrl = $props.RepositoryUrl | Where-Object { $_ } | Select-Object -First 1
+          if ($repoUrl -ne 'https://github.com/muratbulat/ipmaster') { throw "RepositoryUrl is '$repoUrl'" }
+          $wxs = Get-Content scripts/installer/msi/Package.wxs -Raw
+          foreach ($f in @('THIRD-PARTY-NOTICES.md') + @(Get-ChildItem licenses -File | ForEach-Object { "licenses/$($_.Name)" })) {
+            if (-not (Test-Path $f)) { throw "missing $f" }
+            if ($wxs -notmatch [regex]::Escape($f.Replace('/', '\'))) { throw "the MSI does not install $f" }
+          }
+          if (Select-String -Path README.md, website/*.html, website/*/*.html -Pattern 'all rights reserved|no (open-source )?licen[cs]e has been published') { throw 'contradictory licence wording' }
+          'Licence OK: GPL-3.0-only'
+
   vulnerable-packages:
     name: Vulnerable packages
     runs-on: ubuntu-latest
@@ -113,6 +138,21 @@ jobs:
           # MSI (D-105): built by WiX with ICE validation; publish.ps1 already checked its ProductVersion
           $msi = @(Get-ChildItem artifacts/ci/packages -Filter 'IPMaster-*-win-x64-setup-framework-dependent.msi')
           if ($msi.Count -ne 1) { throw 'missing the MSI' }
+          # D-115: LICENSE, notices and the source revision in both zips and the MSI
+          $wanted = 'LICENSE', 'THIRD-PARTY-NOTICES.md', 'SOURCE.txt', 'licenses/Apache-2.0.txt'
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          foreach ($z in Get-ChildItem artifacts/ci/packages -Filter 'IPMaster-*-win-x64*.zip') {
+            $a = [System.IO.Compression.ZipFile]::OpenRead($z.FullName)
+            try { $names = @($a.Entries | ForEach-Object { $_.FullName.Replace('\', '/') }) } finally { $a.Dispose() }
+            foreach ($w in $wanted) { if ($names -notcontains $w) { throw "$($z.Name) lacks $w" } }
+          }
+          $wi = New-Object -ComObject WindowsInstaller.Installer
+          $db = $wi.OpenDatabase($msi[0].FullName, 0)
+          $view = $db.OpenView("SELECT FileName FROM File")
+          $view.Execute()
+          $files = @(while ($r = $view.Fetch()) { ($r.StringData(1) -split '\|')[-1] })
+          $view.Close()
+          foreach ($w in 'LICENSE', 'THIRD-PARTY-NOTICES.md', 'SOURCE.txt', 'Apache-2.0.txt') { if ($files -notcontains $w) { throw "the MSI lacks $w" } }
           $sums = Get-Content artifacts/ci/packages/SHA256SUMS.txt
           foreach ($f in @($zip[0], $msi[0])) { if (-not ($sums -match [regex]::Escape($f.Name))) { throw "SHA256SUMS.txt lacks $($f.Name)" } }
           "Package OK: $version ($($zip.Name), $($msi.Name))"

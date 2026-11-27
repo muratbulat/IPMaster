@@ -35,6 +35,25 @@ jobs:
       - name: Build the packages
         shell: pwsh
         run: ./scripts/publish.ps1 -All -Root artifacts/release-ci
+      # D-115: every archive carries the GPL text, the notices and SOURCE.txt (the MSI is checked in CI)
+      - name: Check the licence files in the packages
+        shell: pwsh
+        run: |
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $wanted = 'LICENSE', 'THIRD-PARTY-NOTICES.md', 'SOURCE.txt'
+          foreach ($p in Get-ChildItem artifacts/release-ci/packages -File | Where-Object { $_.Name -match '\.(zip|tar\.gz)$' }) {
+            if ($p.Extension -eq '.zip') {
+              $a = [System.IO.Compression.ZipFile]::OpenRead($p.FullName)
+              try { $names = @($a.Entries | ForEach-Object { $_.FullName.Replace('\', '/') }) } finally { $a.Dispose() }
+            }
+            else {
+              $fs = [System.IO.File]::OpenRead($p.FullName)
+              $tar = [System.Formats.Tar.TarReader]::new([System.IO.Compression.GZipStream]::new($fs, [System.IO.Compression.CompressionMode]::Decompress))
+              $names = @(while ($e = $tar.GetNextEntry()) { $e.Name -replace '^[^/]+/', '' })
+              $tar.Dispose(); $fs.Dispose()
+            }
+            foreach ($w in $wanted) { if ($names -notcontains $w) { throw "$($p.Name) lacks $w" } }
+          }
       - name: Create the draft release
         shell: pwsh
         env:
