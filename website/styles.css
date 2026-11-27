@@ -96,7 +96,7 @@ nav a:hover { color: var(--text); }
   background: linear-gradient(180deg, #ffffff 30%, #c9cfe6);
   -webkit-background-clip: text; background-clip: text; color: transparent;
 }
-.lead { max-width: 58ch; margin: 22px auto 0; font-size: clamp(1.0625rem, 1rem + 0.35vw, 1.25rem); color: var(--muted); }
+.lead { max-width: 25ch; margin: 11px auto 0; font-size: clamp(1.0625rem, 1rem + 0.35vw, 1.25rem); color: var(--muted); }
 
 .cta { display: flex; flex-wrap: wrap; justify-content: center; gap: 14px; margin-top: 36px; }
 .btn {
