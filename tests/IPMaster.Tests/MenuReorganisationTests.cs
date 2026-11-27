@@ -13,7 +13,7 @@ public class ToolsMenuOrderTests
     private static readonly Dictionary<string, string[]> Reference = new()
     {
         ["Calculators"] = ["Download Calculator", "IP Calculator"],
-        ["Discovery"] = ["Device IP Discovery & DHCP Server", "IP Address Tools", "LLDP / CDP Topology Explorer", "Wi-Fi Analyzer & Optimizer"],
+        ["Discovery"] = ["Device IP Discovery & DHCP Server", "LLDP / CDP Topology Explorer", "Wi-Fi Analyzer & Optimizer"], // IP Address Tools: Options (D-116)
         ["Network Diagnostics"] = ["DNS Tools", "HTTP / API Tester", "iPerf Network Performance", "Network Path & MTU Analyzer", "NTP Time Checker", "TCP Connection Tester", "TLS Certificate Inspector"],
         ["Network Services"] = ["LDAP / Active Directory Tester", "SMTP Client Tester", "SNMP Tools", "Syslog Receiver"],
         ["Remote Management"] = ["Credential Manager", "Remote Query Manager", "Wake-on-LAN Manager"],
@@ -37,16 +37,14 @@ public class ToolsMenuOrderTests
         Assert.Equal(MainWindow.ToolShortcuts.Length, MainWindow.ToolShortcuts.Select(t => t.Id).Distinct().Count());
         Assert.Empty(MainWindow.ToolEntries.Select(t => t.Id).Intersect(MainWindow.ToolShortcuts.Select(t => t.Id)));
         static char Key(string h) => char.ToUpperInvariant(h[h.IndexOf('_', StringComparison.Ordinal) + 1]);
-        foreach (var g in MainWindow.ToolEntries.GroupBy(t => t.Category)) Assert.Equal(g.Count(), g.Select(t => Key(t.Header)).Distinct().Count());
-        var categories = MainWindow.ToolEntries.Select(t => t.Category).Distinct().ToList();
-        Assert.Equal(categories.Count, categories.Select(Key).Distinct().Count());
+        Assert.Equal(MainWindow.ToolEntries.Length, MainWindow.ToolEntries.Select(t => Key(t.Header)).Distinct().Count()); // one flat menu (D-116)
     }
 
     [Fact]
     public void A_new_tool_lands_in_its_alphabetical_place()
     {
-        var sorted = MainWindow.Sorted(MainWindow.ToolEntries.Append(new MainWindow.ToolEntry("_Calculators", "_Aardvark Tool…", (_, _) => null!))
-            .Append(new MainWindow.ToolEntry("S_ystem Administration", "Zebra _Tool...", (_, _) => null!)));
+        var sorted = MainWindow.Sorted(MainWindow.ToolEntries.Append(new MainWindow.ToolEntry("Calculators", "_Aardvark Tool…", (_, _) => null!))
+            .Append(new MainWindow.ToolEntry("System Administration", "Zebra _Tool...", (_, _) => null!)));
         Assert.Equal("_Aardvark Tool…", sorted[0].Header);
         Assert.Equal("Zebra _Tool...", sorted[^1].Header);
     }
@@ -105,8 +103,18 @@ public class RenamedShortcutTests
     }
 
     [Fact]
-    public void Every_old_id_maps_to_a_different_new_command() =>
-        Assert.Equal(Shortcuts.LegacyIds.Count, Shortcuts.LegacyIds.Values.Distinct().Count());
+    public void Only_the_two_ids_of_detect_local_ip_range_share_a_new_command() =>
+        Assert.Equal(["Options/Detect Local IP Range"], Shortcuts.LegacyIds.GroupBy(p => p.Value).Where(g => g.Count() > 1).Select(g => g.Key));
+
+    [Fact]
+    public void Both_old_ids_of_detect_local_ip_range_work_and_the_first_saved_one_wins()
+    {
+        ShortcutCommand detect = new("Options/Detect Local IP Range", "Detect Local IP Range", "Options", "");
+        Assert.Equal("F4", Shortcuts.Effective([detect], [B("Options/IP Address/Auto Detect Local IP Range", "F4")])[detect.Id]); // 0.9.0
+        Assert.Equal("F5", Shortcuts.Effective([detect], [B("Tools/IP Address Tools", "F5")])[detect.Id]); // D-111
+        Assert.Equal("F5", Shortcuts.Effective([detect], [B("Tools/IP Address Tools", "F5"), B("Options/IP Address/Auto Detect Local IP Range", "F4")])[detect.Id]);
+        Assert.Equal("F6", Shortcuts.Effective([detect], [B("Tools/IP Address Tools", "F5"), B(detect.Id, "F6")])[detect.Id]);
+    }
 }
 
 [Collection("Headless UI")]
@@ -139,7 +147,7 @@ public class MenuRegistryTests
     public Task Options_holds_configuration_only_and_Actions_is_unchanged() => HeadlessUi.Run(() =>
     {
         var c = Catalog(out _);
-        Assert.Equal(["Options/Scan Options", "Options/Ignored IP Addresses", "Options/Friendly Names / Comments", "Options/Virtual Columns"],
+        Assert.Equal(["Options/Scan Options", "Options/Ignored IP Addresses", "Options/Detect Local IP Range", "Options/Friendly Names / Comments", "Options/Virtual Columns"],
             c.Where(x => x.Id.StartsWith("Options/", StringComparison.Ordinal)).Select(x => x.Id));
         foreach (var id in new[] { "Actions/DHCP Server Discovery", "Actions/UPnP Device Discovery", "Actions/mDNS Device Discovery", "Actions/WSD Device Discovery",
                      "Actions/ONVIF Device Discovery", "Actions/Find Duplicate IP Addresses", "Actions/Remote Shutdown", "Actions/Send Message" })
@@ -158,17 +166,49 @@ public class MenuRegistryTests
     });
 
     [Fact]
-    public Task Every_tool_is_reachable_from_the_Tools_menu_under_its_category() => HeadlessUi.Run(() =>
+    public Task Every_tool_is_directly_under_Tools_with_separators_between_groups() => HeadlessUi.Run(() =>
     {
-        _ = Catalog(out var w);
+        var c = Catalog(out var w);
         var tools = w.FindControl<MenuItem>("ToolsMenu")!;
-        var categories = tools.Items.OfType<MenuItem>().ToList();
-        Assert.Equal(MainWindow.ToolEntries.Select(t => t.Category).Distinct(), categories.Select(m => (string)m.Header!));
-        var leaves = categories.SelectMany(m => m.Items.OfType<MenuItem>()).Select(m => (string)m.Header!).ToList();
-        Assert.Equal(MainWindow.ToolEntries.Select(t => t.Header), leaves);
-        var gesture = categories.SelectMany(m => m.Items.OfType<MenuItem>()).Single(m => (string)m.Header! == "_Remote Query Manager…").InputGesture;
-        Assert.Equal("Ctrl+W", gesture?.ToString());
+        var items = tools.Items.OfType<MenuItem>().ToList();
+        Assert.All(items, m => Assert.Empty(m.Items)); // no category submenus
+        Assert.Equal(MainWindow.ToolEntries.Select(t => t.Header), items.Select(m => (string)m.Header!));
+        Assert.Equal(MainWindow.ToolEntries.Select(t => t.Category).Distinct().Count() - 1, tools.Items.OfType<Separator>().Count());
+        Assert.Equal("Ctrl+W", items.Single(m => (string)m.Header! == "_Remote Query Manager…").InputGesture?.ToString());
+        foreach (var t in MainWindow.ToolEntries) Assert.Equal("Tools", c.Single(x => x.Id == t.Id).Category); // the Navigator lists each tool
     });
+
+    /// <summary>D-116: every toolbar button runs a main-menu item with the same handler or command.</summary>
+    [Fact]
+    public void Every_toolbar_command_is_in_the_main_menu()
+    {
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "IPMaster.slnx"))) dir = dir.Parent;
+        var xaml = System.Xml.Linq.XDocument.Load(Path.Combine(dir!.FullName, "src", "IPMaster.Desktop", "Views", "MainWindow.axaml"));
+        System.Xml.Linq.XNamespace x = "http://schemas.microsoft.com/winfx/2006/xaml";
+        var toolbar = xaml.Descendants().Single(e => (string?)e.Attribute(x + "Name") == "ToolbarPanel").Elements().Where(e => e.Name.LocalName is "Button" or "ToggleButton").ToList();
+        var menu = xaml.Descendants().Single(e => (string?)e.Attribute(x + "Name") == "MainMenu");
+        static string? Action(System.Xml.Linq.XElement e) => (string?)e.Attribute("Click") ?? (string?)e.Attribute("Command");
+        static string Top(System.Xml.Linq.XElement e) => (string)e.AncestorsAndSelf().Last(a => a.Name.LocalName == "MenuItem").Attribute("Header")!;
+        var found = new Dictionary<string, string>();
+        foreach (var button in toolbar)
+        {
+            var action = Action(button)!;
+            var item = menu.Descendants().FirstOrDefault(m => m.Name.LocalName == "MenuItem" && Action(m) == action);
+            if (item is null && action == "OnWolManager") continue; // a tool: Tools → Wake-on-LAN Manager (code-built, checked below)
+            Assert.True(item is not null, $"toolbar '{button.Attribute("ToolTip.Tip")}' ({action}) has no menu item");
+            found[action] = Top(item!);
+        }
+
+        Assert.Equal("_Options", found["OnDetect"]);
+        Assert.Equal("_Actions", found["OnPaste"]);
+        Assert.Contains(MainWindow.ToolEntries, t => MainWindow.SortKey(t.Header) == "Wake-on-LAN Manager");
+        var detect = menu.Descendants().Single(m => (string?)m.Attribute("Click") == "OnDetect");
+        Assert.Equal("Detect local IP range", (string?)toolbar.Single(b => (string?)b.Attribute("Click") == "OnDetect").Attribute("ToolTip.Tip"));
+        Assert.Equal("detect local ip range", MainWindow.SortKey((string)detect.Attribute("Header")!).ToLowerInvariant()); // the toolbar's words
+        var paste = menu.Descendants().Single(m => (string?)m.Attribute("Click") == "OnPaste");
+        Assert.Equal("paste an address from the clipboard", MainWindow.SortKey((string)paste.Attribute("Header")!).ToLowerInvariant());
+    }
 }
 
 [Collection("Headless UI")]

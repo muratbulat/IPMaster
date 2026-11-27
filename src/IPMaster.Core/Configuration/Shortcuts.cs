@@ -91,7 +91,8 @@ public static class Shortcuts
     /// </summary>
     public static readonly IReadOnlyDictionary<string, string> LegacyIds = new Dictionary<string, string>(StringComparer.Ordinal)
     {
-        ["Options/IP Address/Auto Detect Local IP Range"] = "Tools/IP Address Tools",
+        ["Options/IP Address/Auto Detect Local IP Range"] = "Options/Detect Local IP Range",
+        ["Tools/IP Address Tools"] = "Options/Detect Local IP Range", // D-116: back under Options, with the toolbar's label
         ["Options/IP Address/Detect IP Range from Host Name"] = "Tools/IP Address Tools/From Host Name",
         ["Options/IP Address/Detect External IP Address"] = "Tools/IP Address Tools/External IP",
         ["Options/Wake-On-LAN Manager"] = "Tools/Wake-on-LAN Manager",

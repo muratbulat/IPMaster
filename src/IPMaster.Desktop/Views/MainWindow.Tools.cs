@@ -9,9 +9,9 @@ using Microsoft.Extensions.DependencyInjection;
 namespace IPMaster.Desktop.Views;
 
 /// <summary>
-/// Tools menu (D-111). Each utility is one entry here: a category, a header and a factory for its window. Entries become commands
-/// automatically (shortcuts, Navigator), because the command registry walks the menu; <see cref="ToolEntry.Id"/> keeps the
-/// command id independent of the category, so moving a tool to another category keeps its shortcut.
+/// Tools menu (D-111, flat since D-116). Each utility is one entry here: a group, a header and a factory for its window. The menu
+/// lists every tool directly, groups separated by a line. Entries become commands automatically (shortcuts, Navigator), because the
+/// command registry walks the menu; <see cref="ToolEntry.Id"/> is "Tools/" + caption, so grouping never changes an id.
 /// </summary>
 public partial class MainWindow
 {
@@ -24,37 +24,39 @@ public partial class MainWindow
     /// <summary>A command without a menu item: opens a tool on one tab or query type (shortcuts, Navigator, old command ids).</summary>
     internal sealed record ToolCommand(string Id, string Name, string Category, Func<MainWindow, MainWindowViewModel, Window> Open);
 
-    private const string Calculators = "_Calculators";
-    private const string Discovery = "_Discovery";
-    private const string Diagnostics = "_Network Diagnostics";
-    private const string Services = "Network _Services";
-    private const string Remote = "_Remote Management";
-    private const string Administration = "S_ystem Administration";
+    private const string Calculators = "Calculators";
+    private const string Discovery = "Discovery";
+    private const string Diagnostics = "Network Diagnostics";
+    private const string Services = "Network Services";
+    private const string Remote = "Remote Management";
+    private const string Administration = "System Administration";
 
-    /// <summary>Categories, then entries, alphabetical by caption (accelerator markers and the trailing ellipsis ignored), whatever the order below.</summary>
+    /// <summary>
+    /// Groups, then entries, alphabetical by caption (accelerator markers and the trailing ellipsis ignored), whatever the order below.
+    /// The menu is flat, so every access key is unique across all entries.
+    /// </summary>
     internal static readonly ToolEntry[] ToolEntries = Sorted(
     [
-        new(Calculators, "_Download Calculator…", (_, _) => new TransferCalculatorWindow(new TransferCalculatorViewModel())),
+        new(Calculators, "D_ownload Calculator…", (_, _) => new TransferCalculatorWindow(new TransferCalculatorViewModel())),
         new(Calculators, "_IP Calculator…", (_, _) => new IpCalculatorWindow(new IpCalculatorViewModel())),
-        new(Discovery, "Device IP _Discovery & DHCP Server…", (_, vm) => new DeviceDiscoveryWindow(vm)),
-        new(Discovery, "IP _Address Tools…", (_, vm) => new IpAddressToolsWindow(vm)),
-        new(Discovery, "LLDP / CDP _Topology Explorer…", (_, _) => new TopologyExplorerWindow()),
-        new(Discovery, "_Wi-Fi Analyzer & Optimizer…", (_, vm) => new WifiAnalyzerWindow(vm.Services.GetRequiredService<IPMaster.Core.Wifi.IWifiProvider>(),
+        new(Discovery, "_Device IP Discovery & DHCP Server…", (_, vm) => new DeviceDiscoveryWindow(vm)),
+        new(Discovery, "_LLDP / CDP Topology Explorer…", (_, _) => new TopologyExplorerWindow()),
+        new(Discovery, "Wi-Fi Analy_zer & Optimizer…", (_, vm) => new WifiAnalyzerWindow(vm.Services.GetRequiredService<IPMaster.Core.Wifi.IWifiProvider>(),
             vm.Services.GetRequiredService<IPMaster.Core.Scanning.IIcmpProbe>())),
-        new(Diagnostics, "_DNS Tools…", (_, _) => new DnsToolsWindow()),
+        new(Diagnostics, "D_NS Tools…", (_, _) => new DnsToolsWindow()),
         new(Diagnostics, "_HTTP / API Tester…", (_, _) => new HttpTesterWindow()),
-        new(Diagnostics, "_iPerf Network Performance…", (_, vm) => new IperfWindow(vm, vm.Services.GetRequiredService<IIperfService>(), vm.Services.GetRequiredService<IPMaster.Core.Network.INetworkAdapterProvider>())),
-        new(Diagnostics, "Network _Path & MTU Analyzer…", (_, vm) => new PathAnalyzerWindow(vm.Services.GetRequiredService<IPMaster.Core.Monitoring.IRouteTracer>())),
-        new(Diagnostics, "_NTP Time Checker…", (_, _) => new NtpCheckerWindow()),
+        new(Diagnostics, "iPer_f Network Performance…", (_, vm) => new IperfWindow(vm, vm.Services.GetRequiredService<IIperfService>(), vm.Services.GetRequiredService<IPMaster.Core.Network.INetworkAdapterProvider>())),
+        new(Diagnostics, "Network Path & MT_U Analyzer…", (_, vm) => new PathAnalyzerWindow(vm.Services.GetRequiredService<IPMaster.Core.Monitoring.IRouteTracer>())),
+        new(Diagnostics, "NT_P Time Checker…", (_, _) => new NtpCheckerWindow()),
         new(Diagnostics, "_TCP Connection Tester…", (_, _) => new TcpTesterWindow()),
-        new(Diagnostics, "TLS _Certificate Inspector…", (_, _) => new TlsInspectorWindow()),
-        new(Services, "_LDAP / Active Directory Tester…", (_, _) => new LdapTesterWindow()),
+        new(Diagnostics, "TLS C_ertificate Inspector…", (_, _) => new TlsInspectorWindow()),
+        new(Services, "LDAP / Acti_ve Directory Tester…", (_, _) => new LdapTesterWindow()),
         new(Services, "_SMTP Client Tester…", (_, vm) => new SmtpTesterWindow(new SmtpTesterViewModel(vm, vm.Services.GetRequiredService<ISmtpTester>()))),
         new(Services, "SN_MP Tools…", (_, vm) => new SnmpToolsWindow(vm)),
         new(Services, "S_yslog Receiver…", (_, _) => new SyslogReceiverWindow()),
         new(Remote, "_Credential Manager…", (_, vm) => CredentialManagerWindow.Create(vm), Modal: true),
         new(Remote, "_Remote Query Manager…", (_, vm) => new QueryManagerWindow(vm, QueryKind.Wmi), Gesture: "Ctrl+W"), // Ctrl+W: Remote WMI before D-111
-        new(Remote, "_Wake-on-LAN Manager…", (_, vm) => WolWindow(vm)),
+        new(Remote, "Wake-on-L_AN Manager…", (_, vm) => WolWindow(vm)),
         new(Administration, "_Group Policy Viewer…", (_, vm) => new GroupPolicyViewerWindow(vm.Services.GetRequiredService<IGroupPolicyService>())),
         new(Administration, "_KMS Activation Manager…", (_, vm) => new KmsManagerWindow(vm, vm.Services.GetRequiredService<IKmsService>())),
         new(Administration, "_WinGet Manager…", (_, vm) => new WinGetManagerWindow(vm.Services.GetRequiredService<IWinGetService>())),
@@ -63,11 +65,11 @@ public partial class MainWindow
     /// <summary>Tabs and query types that had menu items of their own before D-111: still commands (shortcuts, Navigator).</summary>
     internal static readonly ToolCommand[] ToolShortcuts =
     [
-        new("Tools/DNS Tools/Bulk Audit", "DNS Tools: Bulk Audit", "Tools › Network Diagnostics", (_, _) => new DnsToolsWindow(tab: DnsToolsWindow.BulkAuditTab)),
-        new("Tools/SNMP Tools/Interface Monitor", "SNMP Tools: Interface Monitor", "Tools › Network Services", (_, vm) => new SnmpToolsWindow(vm, tab: SnmpToolsWindow.InterfaceMonitorTab)),
-        new("Tools/IP Address Tools/From Host Name", "IP Address Tools: From Host Name", "Tools › Discovery", (_, vm) => new IpAddressToolsWindow(vm, IpAddressToolsWindow.FromHostNameTab)),
-        new("Tools/IP Address Tools/External IP", "IP Address Tools: External IP", "Tools › Discovery", (_, vm) => new IpAddressToolsWindow(vm, IpAddressToolsWindow.ExternalIpTab)),
-        .. Enum.GetValues<QueryKind>().Select(k => new ToolCommand("Tools/Remote Query Manager/" + k, "Remote Query Manager: " + QueryColumns.DisplayName(k), "Tools › Remote Management",
+        new("Tools/DNS Tools/Bulk Audit", "DNS Tools: Bulk Audit", "Tools", (_, _) => new DnsToolsWindow(tab: DnsToolsWindow.BulkAuditTab)),
+        new("Tools/SNMP Tools/Interface Monitor", "SNMP Tools: Interface Monitor", "Tools", (_, vm) => new SnmpToolsWindow(vm, tab: SnmpToolsWindow.InterfaceMonitorTab)),
+        new("Tools/IP Address Tools/From Host Name", "IP Address Tools: From Host Name", "Options", (_, vm) => new IpAddressToolsWindow(vm, IpAddressToolsWindow.FromHostNameTab)),
+        new("Tools/IP Address Tools/External IP", "IP Address Tools: External IP", "Options", (_, vm) => new IpAddressToolsWindow(vm, IpAddressToolsWindow.ExternalIpTab)),
+        .. Enum.GetValues<QueryKind>().Select(k => new ToolCommand("Tools/Remote Query Manager/" + k, "Remote Query Manager: " + QueryColumns.DisplayName(k), "Tools",
             (_, vm) => new QueryManagerWindow(vm, k))),
     ];
 
@@ -117,7 +119,7 @@ public partial class MainWindow
         ToolsMenu.Items.Clear();
         foreach (var group in ToolEntries.GroupBy(t => t.Category))
         {
-            var category = new MenuItem { Header = group.Key };
+            if (ToolsMenu.Items.Count > 0) ToolsMenu.Items.Add(new Separator());
             foreach (var tool in group)
             {
                 var item = new MenuItem { Header = tool.Header, InputGesture = tool.Gesture.Length > 0 ? Avalonia.Input.KeyGesture.Parse(tool.Gesture) : null };
@@ -126,10 +128,8 @@ public partial class MainWindow
                     if (Vm is { } vm) ShowTool(tool.Open(this, vm), tool.Modal);
                 };
                 _commandIds[item] = tool.Id;
-                category.Items.Add(item);
+                ToolsMenu.Items.Add(item);
             }
-
-            ToolsMenu.Items.Add(category);
         }
     }
 }

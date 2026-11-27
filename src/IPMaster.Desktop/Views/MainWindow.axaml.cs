@@ -1005,7 +1005,7 @@ public partial class MainWindow : Window, IDialogs
         await Vm.ApplySettingsAsync(Vm.Settings with { IgnoredAddresses = lines });
     }
 
-    /// <summary>Toolbar "Detect local IP range": Tools → Discovery → IP Address Tools on the Local Range tab (D-111).</summary>
+    /// <summary>Toolbar "Detect local IP range" and Options → Detect Local IP Range: IP Address Tools on the Local Range tab (D-111, D-116).</summary>
     private void OnDetect(object? sender, RoutedEventArgs e)
     {
         if (Vm is not null) new IpAddressToolsWindow(Vm).Show(this);

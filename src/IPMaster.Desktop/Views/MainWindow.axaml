@@ -105,10 +105,12 @@
         <MenuItem Header="Disconnect _Network Drive…" Click="OnDisconnectDrive" />
         <MenuItem Header="_Clear Results" Command="{Binding ClearResultsCommand}" />
         <MenuItem Header="C_opy Selected Rows" InputGesture="Ctrl+C" Click="OnCopy" />
+        <MenuItem Header="_Paste an Address from the Clipboard" Click="OnPaste" />
       </MenuItem>
       <MenuItem Header="_Options">
         <MenuItem Header="_Scan Options…" InputGesture="Ctrl+O" Click="OnOptions" />
         <MenuItem Header="I_gnored IP Addresses…" Click="OnIgnored" />
+        <MenuItem Header="_Detect Local IP Range…" Click="OnDetect" />
         <Separator />
         <MenuItem Header="_Friendly Names / Comments…" Click="OnFriendlyNames" />
         <MenuItem Header="_Virtual Columns…" Click="OnVirtualColumns" />
